@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# environment
+.env
+.env.local
+
+# PlatformIO build artifacts
+firmware/esp32-unit/.pio/
+
+# build output
+dist/
+build/
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# logs
+*.log
+npm-debug.log*
+
+# Claude Code local session data
+.claude/
+.qodo/

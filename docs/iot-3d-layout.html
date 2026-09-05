@@ -1,0 +1,392 @@
+<meta charset="utf-8">
+<title>IoT Physical Layout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #f7f8f4; --surface: #ffffff; --surface-2: #eef1ea;
+    --ink: #1e2a20; --muted: #5c6b5e; --faint: #8b978c;
+    --line: #d8ded2; --line-strong: #b9c4b3;
+    --water: #1c6e8c; --water-ink: #0f4f66;
+    --fert: #b06a1e; --fert-ink: #8a5217;
+    --warn: #b06a1e;
+    --shadow: 0 1px 2px rgba(30,42,32,0.06), 0 4px 16px rgba(30,42,32,0.05);
+    --floor: #e4e8dd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12160f; --surface: #181d15; --surface-2: #1e2419;
+      --ink: #e8ece3; --muted: #a2ae9b; --faint: #71806f;
+      --line: #2b3226; --line-strong: #3c4535;
+      --water: #5fc1e8; --water-ink: #8fd6f2;
+      --fert: #e3a455; --fert-ink: #eebd7d;
+      --warn: #e3a455;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+      --floor: #1c231b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12160f; --surface: #181d15; --surface-2: #1e2419;
+    --ink: #e8ece3; --muted: #a2ae9b; --faint: #71806f;
+    --line: #2b3226; --line-strong: #3c4535;
+    --water: #5fc1e8; --water-ink: #8fd6f2;
+    --fert: #e3a455; --fert-ink: #eebd7d;
+    --warn: #e3a455;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+    --floor: #1c231b;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:16px; line-height:1.55; }
+  h1,h2,h3 { font-weight:700; text-wrap:balance; }
+  p { max-width:70ch; }
+  a { color: var(--water-ink); }
+  .sheet { max-width:1100px; margin:0 auto; padding:48px 32px 96px; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.11em; text-transform:uppercase; color:var(--water-ink); display:flex; gap:10px; align-items:center; margin-bottom:14px; }
+  .eyebrow::before { content:""; width:8px; height:8px; background:var(--water); display:inline-block; }
+  h1.title { font-size:clamp(26px,3.6vw,36px); margin:0 0 10px; letter-spacing:-.01em; }
+  .dek { color:var(--muted); font-size:16px; max-width:66ch; margin:0 0 28px; }
+  figure { margin:0; border:1px solid var(--line-strong); background:var(--surface); border-radius:10px; box-shadow:var(--shadow); padding:8px; position:relative; }
+  figure svg { display:block; width:100%; height:auto; cursor:grab; touch-action:none; user-select:none; }
+  figure svg.grabbing { cursor:grabbing; }
+  .scene-toolbar { position:absolute; top:18px; right:18px; display:flex; align-items:center; gap:10px; }
+  .drag-hint { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.03em; color:var(--muted); background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:5px 11px; pointer-events:none; }
+  .reset-btn { font-family:"IBM Plex Mono",monospace; font-size:11.5px; background:var(--surface); color:var(--ink); border:1px solid var(--line-strong); border-radius:999px; padding:6px 13px; cursor:pointer; }
+  .reset-btn:hover { background:var(--surface-2); }
+  figcaption { font-size:13px; color:var(--muted); padding:14px 10px 6px; border-top:1px dashed var(--line); margin-top:8px; }
+  .legend { display:flex; flex-wrap:wrap; gap:18px; margin:18px 4px 0; font-size:13px; color:var(--muted); }
+  .legend span { display:inline-flex; align-items:center; gap:7px; }
+  .legend i { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .note { margin-top:28px; font-size:14px; color:var(--muted); background:var(--surface-2); border-radius:8px; padding:14px 16px; border-left:3px solid var(--water); }
+  .note b { color:var(--ink); }
+  footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line); font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+
+  svg text { font-family:"IBM Plex Mono", monospace; fill: var(--ink); }
+  .lbl { font-size: 13px; font-weight: 600; }
+  .lbl-sub { font-size: 10.5px; fill: var(--muted); }
+</style>
+
+<div class="sheet">
+  <div class="eyebrow">Physical Layout · Interactive 3D</div>
+  <h1 class="title">IoT Setup — 3D Layout</h1>
+  <p class="dek">Where everything actually sits on the bench, not how it's wired — for the electrical/plumbing schematic see <a href="wiring-diagram.html">wiring-diagram.html</a>. Drag the scene to orbit around it — the whole layout re-renders with correct occlusion from any angle, not just a fixed isometric snapshot.</p>
+
+  <figure>
+    <div class="scene-toolbar">
+      <span class="drag-hint">🖱 drag to rotate</span>
+      <button class="reset-btn" id="resetView" type="button">Reset view</button>
+    </div>
+    <svg id="scene" viewBox="0 0 1000 620" role="img" aria-label="Interactive, rotatable isometric illustration of the physical setup: a raised bench holding ten pots in a row, a nozzle rail above the pots with mist drips, a sensor pole at canopy height at one end of the bench, and beside the bench a water tank, a smaller feed tank, a pump, and a control box housing the ESP32 and relay board, with pipes running from the tanks up to the nozzle rail. Drag to orbit the view.">
+      <defs>
+        <marker id="drip" markerWidth="4" markerHeight="4" refX="2" refY="2">
+          <circle cx="2" cy="2" r="1.6" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g id="scene-root"></g>
+    </svg>
+  </figure>
+
+  <div class="legend">
+    <span><i style="background:#7b8794"></i> Structure / hardware</span>
+    <span><i style="background:#3f7ea6"></i> Water tank, pump &amp; valve</span>
+    <span><i style="background:#c98a3e"></i> Feed tank, pump &amp; valve</span>
+    <span><i style="background:#b5693f"></i> Pots (terracotta)</span>
+    <span><i style="background:#4a5a52"></i> Control box (ESP32 + relay)</span>
+    <span><i style="background:#e3a455;opacity:.55"></i> Fungicide line — opt-in, TBD</span>
+  </div>
+
+  <div class="note">
+    <b>This is a spatial reference, not a build drawing.</b> Real placement depends on your actual bench and tank sizes — use it to sanity-check clearances (sensor pole height above canopy, tank position relative to the pump's suction lift, control box kept clear of splash) rather than as exact measurements.
+  </div>
+
+  <footer>
+    <span>plant-automation · 3D layout v0.2 — interactive</span>
+    <span>companion to wiring-diagram.html — physical layout, not electrical schematic</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const NS = "http://www.w3.org/2000/svg";
+  const svgEl = document.getElementById("scene");
+  const root = document.getElementById("scene-root");
+
+  const SCALE = 62;
+  const ORIGIN = { x: 430, y: 400 };
+  const CENTER = { x: 2.2, y: 0.9, z: 1.0 }; // rotation pivot, roughly scene middle
+
+  let yaw = Math.PI / 4;              // 45° — matches the original fixed isometric view
+  let pitch = Math.atan(1 / Math.SQRT2); // ~35.26° — the true isometric tilt
+
+  let queue = [];
+
+  // Rotates a 3D point around CENTER by the current yaw/pitch, then drops
+  // it to 2D with a plain orthographic projection. `depth` is the point's
+  // distance along the view axis after rotation — used to sort draw order
+  // every frame, since which parts occlude which changes as you rotate.
+  function rp(x, y, z) {
+    let rx = x - CENTER.x, ry = y - CENTER.y, rz = z - CENTER.z;
+    const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+    const x1 = rx * cosY + rz * sinY;
+    const z1 = -rx * sinY + rz * cosY;
+    const cosP = Math.cos(pitch), sinP = Math.sin(pitch);
+    const y2 = ry * cosP - z1 * sinP;
+    const z2 = ry * sinP + z1 * cosP;
+    return { x: ORIGIN.x + x1 * SCALE, y: ORIGIN.y - y2 * SCALE, depth: z2 };
+  }
+
+  function el(tag, attrs) {
+    const node = document.createElementNS(NS, tag);
+    for (const k in attrs) node.setAttribute(k, attrs[k]);
+    return node;
+  }
+
+  function enqueue(node, depth) {
+    queue.push({ node, depth });
+  }
+
+  function poly(pts, fill, opacity, dashed, forceDepth) {
+    const node = el("polygon", {
+      points: pts.map((p) => `${p.x},${p.y}`).join(" "),
+      fill,
+      stroke: "rgba(20,25,20,0.35)",
+      "stroke-width": 1,
+      "stroke-linejoin": "round",
+    });
+    if (opacity != null) node.setAttribute("fill-opacity", opacity);
+    if (dashed) node.setAttribute("stroke-dasharray", "4 3");
+    const depth = forceDepth != null ? forceDepth : pts.reduce((s, p) => s + p.depth, 0) / pts.length;
+    enqueue(node, depth);
+  }
+
+  function shade(hex, amt) {
+    const c = parseInt(hex.slice(1), 16);
+    let r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
+    r = Math.max(0, Math.min(255, r + amt));
+    g = Math.max(0, Math.min(255, g + amt));
+    b = Math.max(0, Math.min(255, b + amt));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // Draws a cuboid at grid position (x,y,z) [y = up] with size (w,h,d).
+  // Each face gets a shade of the same base color, lightened on top and
+  // darkened on the sides, so it reads as one lit solid.
+  function box(x, y, z, w, h, d, color, opts) {
+    opts = opts || {};
+    const top = [rp(x, y + h, z), rp(x + w, y + h, z), rp(x + w, y + h, z + d), rp(x, y + h, z + d)];
+    const right = [rp(x + w, y, z), rp(x + w, y, z + d), rp(x + w, y + h, z + d), rp(x + w, y + h, z)];
+    const left = [rp(x, y, z + d), rp(x + w, y, z + d), rp(x + w, y + h, z + d), rp(x, y + h, z + d)];
+    poly(right, shade(color, -55), opts.opacity, opts.ghost);
+    poly(left, shade(color, -25), opts.opacity, opts.ghost);
+    poly(top, shade(color, 25), opts.opacity, opts.ghost);
+  }
+
+  function label(x, y, z, text, sub, dy) {
+    dy = dy || 0;
+    const p = rp(x, y, z);
+    const g = el("g", {});
+    const t = el("text", { x: p.x, y: p.y - 14 + dy, "text-anchor": "middle", class: "lbl" });
+    t.textContent = text;
+    g.appendChild(t);
+    if (sub) {
+      const s = el("text", { x: p.x, y: p.y + 1 + dy, "text-anchor": "middle", class: "lbl-sub" });
+      s.textContent = sub;
+      g.appendChild(s);
+    }
+    enqueue(g, p.depth);
+  }
+
+  function pipe(points, color, width) {
+    const projected = points.map((pt) => rp(...pt));
+    const d = projected.map((p, i) => (i === 0 ? "M" : "L") + `${p.x},${p.y}`).join(" ");
+    const g = el("g", {});
+    g.appendChild(el("path", { d, stroke: shade(color, -40), "stroke-width": width + 3, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }));
+    g.appendChild(el("path", { d, stroke: color, "stroke-width": width, fill: "none", "stroke-linecap": "round", "stroke-linejoin": "round" }));
+    const depth = projected.reduce((s, p) => s + p.depth, 0) / projected.length;
+    enqueue(g, depth);
+  }
+
+  function shadow(x, z, rx, rz) {
+    const c = rp(x, 0.02, z);
+    enqueue(el("ellipse", { cx: c.x, cy: c.y, rx: rx * SCALE * 0.5, ry: rz * SCALE * 0.22, fill: "rgba(20,25,20,0.18)" }), c.depth);
+  }
+
+  function dot(x, y, z, color, r) {
+    const p = rp(x, y, z);
+    enqueue(el("circle", { cx: p.x, cy: p.y, r: r || 4, fill: color, stroke: "rgba(20,25,20,0.4)", "stroke-width": 0.8 }), p.depth);
+  }
+
+  function line3(a, b, stroke, width, dashed, markerEnd, opacity) {
+    const p1 = rp(...a), p2 = rp(...b);
+    const attrs = { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, stroke, "stroke-width": width };
+    if (dashed) attrs["stroke-dasharray"] = dashed;
+    if (markerEnd) attrs["marker-end"] = markerEnd;
+    if (opacity != null) attrs.opacity = opacity;
+    enqueue(el("line", attrs), (p1.depth + p2.depth) / 2);
+  }
+
+  function customPoly(pts3, fill, opacity) {
+    poly(pts3.map((p) => rp(...p)), fill, opacity);
+  }
+
+  function frameLine(a, b, opacity) {
+    const p1 = rp(...a), p2 = rp(...b);
+    enqueue(el("line", { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, stroke: "var(--faint)", "stroke-width": 1, opacity: opacity || 0.4 }), 9999);
+  }
+
+  function buildScene() {
+    // Floor — forced to draw first (depth -9999): a large flat plane spans
+    // a wide depth range after rotation, which breaks simple per-object
+    // painter's-algorithm sorting if left to sort naturally.
+    poly(
+      [rp(-5, 0, -1.5), rp(10, 0, -1.5), rp(10, 0, 3.5), rp(-5, 0, 3.5)],
+      getComputedStyle(document.documentElement).getPropertyValue("--floor").trim() || "#e4e8dd",
+      null, false, -9999
+    );
+    for (let gx = -5; gx <= 10; gx += 1) frameLineAtBack([gx, 0.01, -1.5], [gx, 0.01, 3.5]);
+    for (let gz = -1.5; gz <= 3.5; gz += 1) frameLineAtBack([-5, 0.01, gz], [10, 0.01, gz]);
+
+    // Water tank + low/full level sensor decals
+    shadow(-3.6, 0.9, 1.6, 1.4);
+    box(-4.2, 0, 0.2, 1.2, 2.0, 1.2, "#2f7fa8");
+    dot(-3.6, 0.3, 1.4, "#dfe7ea", 4.5);
+    dot(-3.6, 1.7, 1.4, "#dfe7ea", 4.5);
+    label(-3.6, 2.0, 0.8, "Water Tank", "500–1000 L, low+full sensors");
+
+    // Feed tank
+    shadow(-3.6, 2.4, 1.2, 1);
+    box(-4.0, 0, 1.9, 0.9, 1.3, 0.9, "#c98a3e");
+    label(-3.55, 1.3, 2.35, "Feed Tank", "hand-mixed, 2 products");
+
+    // Fungicide tank + pump/valve — opt-in 3rd line, drawn ghosted (dashed)
+    shadow(-4.7, 2.9, 0.8, 0.8);
+    box(-5.0, 0, 2.65, 0.65, 0.95, 0.65, "#c98a3e", { opacity: 0.4, ghost: true });
+    box(-4.6, 0, 2.35, 0.45, 0.28, 0.45, "#8a5217", { opacity: 0.4, ghost: true });
+    label(-4.7, 0.95, 2.95, "Fungicide — TBD", "own tank + pump, opt-in");
+
+    // Water pump + valve (stacked)
+    shadow(-2.1, 1.1, 0.9, 0.8);
+    box(-2.5, 0, 0.7, 0.7, 0.42, 0.7, "#5b6470");
+    box(-2.42, 0.42, 0.78, 0.54, 0.24, 0.54, "#3f6d8a");
+    label(-2.15, 0.66, 1.05, "Water Pump", "+ valve, CH1/CH2");
+
+    // Feed pump + valve (stacked)
+    shadow(-3.15, 1.55, 0.75, 0.7);
+    box(-3.4, 0, 1.35, 0.55, 0.35, 0.55, "#5b6470");
+    box(-3.33, 0.35, 1.42, 0.41, 0.2, 0.41, "#b5793a");
+    label(-3.1, 0.55, 1.62, "Feed Pump", "+ valve, CH3/CH4");
+
+    // Control box (ESP32 + relay), mounted at bench end
+    shadow(-0.6, 1.9, 1.1, 1.1);
+    box(-1.1, 0.75, 1.4, 1.0, 0.65, 1.0, "#4a5a52");
+    customPoly([[-0.1, 1.05, 1.4], [-0.1, 1.05, 2.0], [-0.1, 1.25, 2.0], [-0.1, 1.25, 1.4]], "#7fd4ff", 0.9);
+    dot(-0.1, 0.95, 1.55, "#7bc487", 2.2);
+    dot(-0.1, 0.95, 1.65, "#e3a455", 2.2);
+    label(-0.6, 1.4, 1.9, "Control Box", "ESP32 + 4–7 Ch relay");
+
+    // Control cable from the box down to the pump/valve cluster
+    line3([-1.1, 0.9, 1.7], [-2.1, 0.5, 1.1], "var(--faint)", 1.3, "3 3");
+
+    // Bench
+    shadow(4, 1, 9.4, 2.2);
+    box(0, 0, 0.3, 8.2, 0.7, 1.4, "#a98457");
+
+    // Pots on the bench
+    const potXs = [0.5, 1.3, 2.1, 2.9, 3.7, 4.5, 5.3, 6.1, 6.9, 7.7];
+    potXs.forEach((px) => box(px, 0.7, 0.75, 0.42, 0.4, 0.42, "#b5693f"));
+
+    // Sensor pole at one end, above canopy height — DHT22 and rain sensor
+    // as distinct elements (1.5 ft above canopy, rain sensor angled out)
+    box(8.55, 0, 0.95, 0.12, 2.1, 0.12, "#7b8794");
+    box(8.35, 2.1, 0.8, 0.34, 0.22, 0.3, "#e8ece3");
+    customPoly([[8.75, 2.28, 0.75], [9.05, 2.05, 0.6], [9.2, 2.2, 0.75], [8.9, 2.42, 0.9]], "#5b6470", 0.95);
+    label(8.6, 2.55, 1.0, "Sensor Pole", "DHT22 (white) + rain (grey, 45°)");
+
+    // Nozzle rail above the pots + inline filter just before it
+    box(-0.55, 2.2, 0.92, 0.32, 0.26, 0.32, "#8b97a0");
+    label(-0.4, 2.5, 1.08, "Inline Filter", "");
+    box(-0.1, 2.55, 0.85, 8.4, 0.14, 0.3, "#8b97a0");
+    label(4, 2.9, 1.0, "Fogging Nozzle Rail", "30-µm, over all ten pots");
+
+    // Dedicated fungicide nozzle — physically separate from the shared rail
+    box(6.0, 2.0, 0.9, 0.3, 0.16, 0.3, "#e3a455", { opacity: 0.55, ghost: true });
+    line3([6.15, 2.0, 1.05], [6.15, 1.3, 1.0], "#e3a455", 1.4, "1 3", "url(#drip)", 0.6);
+    label(6.15, 2.3, 1.05, "Coarse Nozzle — TBD", "fungicide only, own outlet");
+
+    // Mist drips from the rail down to each pot
+    potXs.forEach((px) => {
+      line3([px + 0.21, 2.55, 1.0], [px + 0.21, 1.25, 0.95], "#5fc1e8", 1.4, "1 3", "url(#drip)", 0.85);
+    });
+
+    // Pipes: tanks -> pump/valve -> up into the nozzle rail (via the filter)
+    pipe([[-3.6, 0.3, 0.8], [-3.6, 0.15, 0.8], [-2.15, 0.15, 1.0], [-2.15, 0.3, 1.0]], "#3f9fce", 5);
+    pipe([[-2.15, 0.66, 1.05], [-2.15, 1.0, 1.05], [-0.4, 1.0, 1.0], [-0.4, 2.2, 1.0]], "#3f9fce", 5);
+    pipe([[-3.55, 1.3, 2.3], [-3.1, 1.3, 2.3], [-3.1, 0.6, 1.55], [-3.1, 0.55, 1.62]], "#d99a4e", 5);
+    pipe([[-4.7, 0.95, 2.95], [-4.7, 1.4, 2.95], [-3.4, 1.4, 2.95], [-3.4, 1.7, 2.95]], "#e3a455", 4);
+
+    // Shade-net house frame, for greenhouse context — always drawn last
+    // (depth 9999) so it reads as a wireframe overlay, not an occluder.
+    const roofY = 3.3;
+    const corners = [[-4.6, -0.9], [9.4, -0.9], [9.4, 3.3], [-4.6, 3.3]];
+    corners.forEach(([cx, cz]) => frameLine([cx, 0, cz], [cx, roofY, cz]));
+    for (let i = 0; i < 4; i++) {
+      const [x1, z1] = corners[i], [x2, z2] = corners[(i + 1) % 4];
+      frameLine([x1, roofY, z1], [x2, roofY, z2]);
+    }
+  }
+
+  function frameLineAtBack(a, b) {
+    const p1 = rp(...a), p2 = rp(...b);
+    enqueue(el("line", { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, stroke: "var(--faint)", "stroke-width": 1, opacity: 0.12 }), -9998);
+  }
+
+  function render() {
+    while (root.firstChild) root.removeChild(root.firstChild);
+    queue = [];
+    buildScene();
+    queue.sort((a, b) => a.depth - b.depth);
+    queue.forEach((item) => root.appendChild(item.node));
+  }
+
+  // ---------- Drag-to-rotate ----------
+  let dragging = false, lastX = 0, lastY = 0, pending = false;
+  const MIN_PITCH = 0.08, MAX_PITCH = Math.PI / 2 - 0.05;
+
+  function scheduleRender() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => { render(); pending = false; });
+  }
+
+  svgEl.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    lastX = e.clientX; lastY = e.clientY;
+    try { svgEl.setPointerCapture(e.pointerId); } catch (err) { /* fine without it — window listeners below still work */ }
+    svgEl.classList.add("grabbing");
+  });
+  // Bound to window, not the svg — so a fast drag that briefly leaves the
+  // element's bounds (or a browser that doesn't honor pointer capture)
+  // still tracks smoothly instead of dropping the drag.
+  window.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    yaw += dx * 0.006;
+    pitch = Math.max(MIN_PITCH, Math.min(MAX_PITCH, pitch - dy * 0.006));
+    scheduleRender();
+  });
+  function endDrag() { dragging = false; svgEl.classList.remove("grabbing"); }
+  window.addEventListener("pointerup", endDrag);
+  window.addEventListener("pointercancel", endDrag);
+
+  const resetBtn = document.getElementById("resetView");
+  if (resetBtn) resetBtn.addEventListener("click", () => {
+    yaw = Math.PI / 4;
+    pitch = Math.atan(1 / Math.SQRT2);
+    scheduleRender();
+  });
+
+  render();
+})();
+</script>

@@ -1,0 +1,436 @@
+<meta charset="utf-8">
+<title>Full Wiring Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #f7f8f4; --surface: #ffffff; --surface-2: #eef1ea;
+    --ink: #1e2a20; --muted: #5c6b5e; --faint: #8b978c;
+    --line: #d8ded2; --line-strong: #b9c4b3;
+    --water: #1c6e8c; --water-ink: #0f4f66;
+    --fert: #b06a1e; --fert-ink: #8a5217;
+    --power: #6a4c93; --power-ink: #4f3873;
+    --good: #3f7d4a; --warn: #b06a1e; --crit: #a83a2e;
+    --shadow: 0 1px 2px rgba(30,42,32,0.06), 0 4px 16px rgba(30,42,32,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12160f; --surface: #181d15; --surface-2: #1e2419;
+      --ink: #e8ece3; --muted: #a2ae9b; --faint: #71806f;
+      --line: #2b3226; --line-strong: #3c4535;
+      --water: #5fc1e8; --water-ink: #8fd6f2;
+      --fert: #e3a455; --fert-ink: #eebd7d;
+      --power: #b39ddb; --power-ink: #cbb8e8;
+      --good: #7bc487; --warn: #e3a455; --crit: #e08579;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12160f; --surface: #181d15; --surface-2: #1e2419;
+    --ink: #e8ece3; --muted: #a2ae9b; --faint: #71806f;
+    --line: #2b3226; --line-strong: #3c4535;
+    --water: #5fc1e8; --water-ink: #8fd6f2;
+    --fert: #e3a455; --fert-ink: #eebd7d;
+    --power: #b39ddb; --power-ink: #cbb8e8;
+    --good: #7bc487; --warn: #e3a455; --crit: #e08579;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:16px; line-height:1.55; }
+  h1,h2,h3 { font-weight:700; text-wrap:balance; color:var(--ink); }
+  p { max-width:70ch; }
+  a { color:var(--water-ink); }
+  .sheet { max-width:1220px; margin:0 auto; padding:48px 32px 96px; }
+  .head { border-bottom:1px solid var(--line-strong); padding-bottom:28px; margin-bottom:36px; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.11em; text-transform:uppercase; color:var(--water-ink); display:flex; gap:10px; align-items:center; margin-bottom:14px; }
+  .eyebrow::before { content:""; width:8px; height:8px; background:var(--water); display:inline-block; }
+  h1.title { font-size:clamp(28px,4vw,40px); margin:0 0 12px; letter-spacing:-.01em; }
+  .dek { color:var(--muted); font-size:17px; max-width:64ch; margin:0 0 20px; }
+  .meta-row { display:flex; flex-wrap:wrap; gap:8px 28px; font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--muted); }
+  .meta-row b { color:var(--ink); font-weight:600; }
+  .layout { display:grid; grid-template-columns:200px minmax(0,1fr); gap:48px; align-items:start; }
+  @media (max-width:860px) { .layout{grid-template-columns:1fr;} nav.toc{position:static;margin-bottom:8px;} }
+  nav.toc { position:sticky; top:28px; font-size:13.5px; }
+  nav.toc .toc-label { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin-bottom:10px; }
+  nav.toc ol { list-style:none; margin:0; padding:0; border-left:2px solid var(--line); }
+  nav.toc li a { display:block; padding:6px 0 6px 14px; color:var(--muted); text-decoration:none; border-left:2px solid transparent; margin-left:-2px; }
+  nav.toc li a:hover { color:var(--ink); border-left-color:var(--water); }
+  main { min-width:0; }
+  section { margin-bottom:56px; scroll-margin-top:20px; }
+  section > .sec-head { display:flex; align-items:baseline; gap:12px; margin-bottom:16px; }
+  .sec-num { font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--faint); }
+  h2.sec-title { font-size:22px; margin:0; }
+  .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:3px; }
+  table { width:100%; border-collapse:collapse; font-size:14.5px; min-width:560px; }
+  thead th { text-align:left; font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); background:var(--surface-2); padding:10px 14px; border-bottom:1px solid var(--line-strong); white-space:nowrap; }
+  tbody td { padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--surface-2); }
+  td.mono, th.mono { font-family:"IBM Plex Mono",monospace; font-size:13px; }
+  .chip { display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.04em; text-transform:uppercase; padding:2px 7px; border-radius:3px; border:1px solid currentColor; white-space:nowrap; }
+  .chip.gap { color:var(--warn); }
+  .chip.ok { color:var(--good); }
+  .legend { display:flex; flex-wrap:wrap; gap:16px; font-size:13px; color:var(--muted); margin:14px 0 0; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .legend .sw { width:22px; height:3px; display:inline-block; border-radius:2px; }
+  figure.schem { margin:20px 0 8px; border:1px solid var(--line-strong); background:var(--surface); border-radius:4px; box-shadow:var(--shadow); position:relative; padding:22px 20px 14px; }
+  figure.schem::before, figure.schem::after, figure.schem .tick-br, figure.schem .tick-bl { content:""; position:absolute; width:10px; height:10px; border-color:var(--line-strong); }
+  figure.schem::before { top:8px; left:8px; border-top:2px solid; border-left:2px solid; }
+  figure.schem::after { top:8px; right:8px; border-top:2px solid; border-right:2px solid; }
+  figure.schem .tick-bl { bottom:8px; left:8px; border-bottom:2px solid; border-left:2px solid; }
+  figure.schem .tick-br { bottom:8px; right:8px; border-bottom:2px solid; border-right:2px solid; }
+  figure.schem svg { display:block; width:100%; height:auto; overflow:visible; }
+  figure.schem figcaption { font-size:13px; color:var(--muted); margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  svg text { fill:currentColor; font-family:"IBM Plex Mono",monospace; }
+  svg .lbl { font-size:12px; fill:var(--ink); }
+  svg .lbl-sub { font-size:9.5px; fill:var(--muted); }
+  svg .lbl-arrow { font-size:10px; fill:var(--muted); }
+  svg .box { fill:var(--surface); stroke:var(--line-strong); stroke-width:1.4; }
+  svg .box-accent { fill:var(--surface); stroke:var(--water); stroke-width:1.6; }
+  svg .box-power { fill:var(--surface); stroke:var(--power); stroke-width:1.6; }
+  svg .box-gap { fill:none; stroke:var(--warn); stroke-width:1.4; stroke-dasharray:5 4; }
+  svg .edge { stroke:var(--faint); stroke-width:1.2; fill:none; }
+  svg .edge-power { stroke:var(--power); stroke-width:1.5; fill:none; }
+  svg .edge-accent { stroke:var(--water); stroke-width:1.6; fill:none; }
+  svg .edge-fert { stroke:var(--fert); stroke-width:1.6; fill:none; }
+  svg .edge-signal { stroke:var(--faint); stroke-width:1.1; fill:none; stroke-dasharray:3 3; }
+  svg .edge-gap { stroke:var(--warn); stroke-width:1.4; fill:none; stroke-dasharray:5 4; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px; }
+  .callout { border:1px solid var(--line-strong); border-left:4px solid var(--warn); background:var(--surface); border-radius:3px; padding:18px 20px; }
+  .callout h3 { margin:0 0 4px; font-size:15px; }
+  .callout .sub { color:var(--muted); font-size:13.5px; margin-bottom:14px; }
+  .gap-list { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  .gap-list li { display:grid; grid-template-columns:20px 1fr; column-gap:10px; row-gap:2px; font-size:14px; }
+  .gap-list li::before { content:""; grid-column:1; grid-row:1; width:8px; height:8px; border-radius:50%; background:var(--warn); margin-top:6px; align-self:start; }
+  .gap-list b { grid-column:2; grid-row:1; font-weight:600; }
+  .gap-list span.why { grid-column:2; grid-row:2; display:block; color:var(--muted); font-size:13px; margin-top:2px; }
+  footer { margin-top:64px; padding-top:20px; border-top:1px solid var(--line); font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+</style>
+
+<div class="sheet">
+
+  <div class="head">
+    <div class="eyebrow">Build Reference · Rev 0.2</div>
+    <h1 class="title">Full Wiring &amp; Connection Diagram</h1>
+    <p class="dek">Every wire on the test bench — mains power down to the tanks — using the actual GPIO pins already in <span class="mono">firmware/esp32-unit/src/Config.h</span>, not placeholder channel numbers.</p>
+    <div class="meta-row">
+      <span><b>Date</b> 2026-08-31</span>
+      <span><b>Scope</b> Phase 1 test bench — 7-channel relay, 3 fertilizer/fungicide products, auto-fill</span>
+      <span><b>Matches</b> firmware Config.h pin map</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <nav class="toc">
+      <div class="toc-label">Contents</div>
+      <ol>
+        <li><a href="#diagram">Full diagram</a></li>
+        <li><a href="#power">Power budget</a></li>
+        <li><a href="#pins">Pin-by-pin table</a></li>
+        <li><a href="#tanks">Tank plumbing</a></li>
+        <li><a href="#warnings">Before you power it on</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <section id="diagram">
+        <div class="sec-head"><span class="sec-num">01</span><h2 class="sec-title">Full diagram</h2></div>
+        <p>Three things happen in this drawing at once, color-coded: <b style="color:var(--power)">purple</b> is power distribution, <b style="color:var(--faint)">grey</b> is control signal (GPIO), and <b style="color:var(--water)">blue</b>/<b style="color:var(--fert)">amber</b> are the two fluid lines. Dashed boxes are parts not yet ordered.</p>
+
+        <figure class="schem">
+          <span class="tick-bl"></span><span class="tick-br"></span>
+          <svg viewBox="0 0 1220 960" role="img" aria-label="Full wiring diagram: AC mains feeds a 12V 5A SMPS through an inline fuse onto a 12V bus. The bus feeds a buck converter producing a 5V rail for the ESP32 and sensors, and separately feeds a 7-channel relay setup's switched supply. The ESP32 reads the OLED, DHT22, rain sensor, and low and full water level sensors over a signal bus, and drives seven relay channels. The relay channels switch the water pump and valve, the feed pump and valve, an optional fungicide pump and valve, and a water inlet valve. The water tank feeds the water pump, the feed tank feeds the feed pump, and both pump-and-valve pairs merge into a shared fogging manifold feeding the nozzles over the benches. The fungicide line is kept separate with its own coarse nozzle, never joining the fine manifold. A mains or rainwater source feeds the water tank through the inlet valve for auto-fill, gated by the low and full sensors.">
+            <defs>
+              <marker id="wa" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <polygon points="0 0, 7 3, 0 6" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <!-- POWER -->
+            <rect class="box-power" x="40" y="30" width="140" height="50" rx="3"/>
+            <text class="lbl" x="110" y="52" text-anchor="middle" style="font-weight:600">AC Mains</text>
+            <text class="lbl-sub" x="110" y="66" text-anchor="middle">230V</text>
+
+            <rect class="box-power" x="240" y="30" width="170" height="50" rx="3"/>
+            <text class="lbl" x="325" y="52" text-anchor="middle" style="font-weight:600">12V 5A SMPS</text>
+            <text class="lbl-sub" x="325" y="66" text-anchor="middle">power supply</text>
+
+            <line class="edge-power" x1="180" y1="55" x2="240" y2="55" marker-end="url(#wa)"/>
+            <line class="edge-power" x1="410" y1="55" x2="450" y2="55"/>
+            <rect class="box-power" x="450" y="42" width="50" height="26" rx="2"/>
+            <text class="lbl-sub" x="475" y="59" text-anchor="middle">5A fuse</text>
+            <line class="edge-power" x1="500" y1="55" x2="900" y2="55" marker-end="url(#wa)"/>
+            <text class="lbl-arrow" x="700" y="45" text-anchor="middle">12V BUS</text>
+
+            <line class="edge-power" x1="580" y1="55" x2="580" y2="110"/>
+            <rect class="box-power" x="490" y="110" width="180" height="50" rx="3"/>
+            <text class="lbl" x="580" y="132" text-anchor="middle" style="font-weight:600">LM2596 Buck</text>
+            <text class="lbl-sub" x="580" y="146" text-anchor="middle">12V → 5V</text>
+
+            <line class="edge-power" x1="580" y1="160" x2="580" y2="185"/>
+            <line class="edge-power" x1="120" y1="185" x2="750" y2="185"/>
+            <text class="lbl-arrow" x="300" y="177" text-anchor="middle">5V RAIL</text>
+
+            <line class="edge-power" x1="120" y1="185" x2="120" y2="355" marker-end="url(#wa)"/>
+            <line class="edge-power" x1="510" y1="185" x2="510" y2="230" marker-end="url(#wa)"/>
+            <line class="edge-power" x1="730" y1="185" x2="730" y2="230" marker-end="url(#wa)"/>
+            <text class="lbl-arrow" x="700" y="222" text-anchor="middle">5V logic</text>
+
+            <line class="edge-power" x1="870" y1="55" x2="870" y2="230" marker-end="url(#wa)"/>
+            <text class="lbl-arrow" x="900" y="150" text-anchor="middle">12V COM</text>
+            <text class="lbl-arrow" x="900" y="163" text-anchor="middle">(switched)</text>
+
+            <!-- SENSORS -->
+            <rect class="box" x="150" y="200" width="220" height="40" rx="3"/>
+            <text class="lbl" x="260" y="224" text-anchor="middle">OLED Display</text>
+            <line class="edge-power" x1="120" y1="220" x2="150" y2="220"/>
+            <line class="edge-signal" x1="370" y1="220" x2="395" y2="220"/>
+
+            <rect class="box-accent" x="150" y="245" width="220" height="40" rx="3"/>
+            <text class="lbl" x="260" y="264" text-anchor="middle" style="font-weight:600">DHT22</text>
+            <text class="lbl-sub" x="260" y="277" text-anchor="middle">GPIO4</text>
+            <line class="edge-power" x1="120" y1="265" x2="150" y2="265"/>
+            <line class="edge-signal" x1="370" y1="265" x2="395" y2="265"/>
+
+            <rect class="box" x="150" y="290" width="220" height="40" rx="3"/>
+            <text class="lbl" x="260" y="309" text-anchor="middle">Rain Sensor</text>
+            <text class="lbl-sub" x="260" y="322" text-anchor="middle">GPIO16</text>
+            <line class="edge-power" x1="120" y1="310" x2="150" y2="310"/>
+            <line class="edge-signal" x1="370" y1="310" x2="395" y2="310"/>
+
+            <rect class="box" x="150" y="335" width="220" height="40" rx="3"/>
+            <text class="lbl" x="260" y="354" text-anchor="middle">Water Level — Low</text>
+            <text class="lbl-sub" x="260" y="367" text-anchor="middle">GPIO34 · mounted on tank</text>
+            <line class="edge-power" x1="120" y1="355" x2="150" y2="355"/>
+            <line class="edge-signal" x1="370" y1="355" x2="395" y2="355"/>
+
+            <rect class="box-gap" x="150" y="380" width="220" height="40" rx="3"/>
+            <text class="lbl" x="260" y="399" text-anchor="middle">Water Level — Full</text>
+            <text class="lbl-sub" x="260" y="412" text-anchor="middle">GPIO35 · TBD, stops auto-fill</text>
+            <line class="edge-power" x1="120" y1="400" x2="150" y2="400"/>
+            <line class="edge-signal" x1="370" y1="400" x2="395" y2="400"/>
+
+            <line class="edge-signal" x1="395" y1="220" x2="395" y2="400"/>
+            <line class="edge-signal" x1="395" y1="280" x2="430" y2="280" marker-end="url(#wa)"/>
+
+            <!-- ESP32 -->
+            <rect class="box-accent" x="430" y="245" width="160" height="70" rx="3"/>
+            <text class="lbl" x="510" y="275" text-anchor="middle" style="font-weight:600">ESP32 Dev Board</text>
+            <text class="lbl-sub" x="510" y="292" text-anchor="middle">I2C: GPIO21 (SDA) / 22 (SCL)</text>
+
+            <!-- RELAY -->
+            <rect class="box-accent" x="700" y="230" width="190" height="95" rx="3"/>
+            <text class="lbl" x="795" y="253" text-anchor="middle" style="font-weight:600">7-Ch Relay Setup</text>
+            <text class="lbl-sub" x="795" y="267" text-anchor="middle">2× DC-rated boards</text>
+            <text class="lbl-sub" x="795" y="281" text-anchor="middle">VCC=5V logic · COM=12V switched</text>
+
+            <line class="edge" x1="590" y1="245" x2="700" y2="245" marker-end="url(#wa)"/>
+            <line class="edge" x1="590" y1="258" x2="700" y2="258" marker-end="url(#wa)"/>
+            <line class="edge" x1="590" y1="271" x2="700" y2="271" marker-end="url(#wa)"/>
+            <line class="edge" x1="590" y1="284" x2="700" y2="284" marker-end="url(#wa)"/>
+            <line class="edge-signal" x1="590" y1="297" x2="700" y2="297" marker-end="url(#wa)"/>
+            <line class="edge-signal" x1="590" y1="307" x2="700" y2="307" marker-end="url(#wa)"/>
+            <line class="edge-signal" x1="590" y1="317" x2="700" y2="317" marker-end="url(#wa)"/>
+            <text class="lbl-arrow" x="645" y="238" text-anchor="middle">GPIO25,26,27,33 → CH1-4</text>
+            <text class="lbl-arrow" x="645" y="349" text-anchor="middle">GPIO17,18,19 → CH5-7</text>
+            <text class="lbl-arrow" x="645" y="362" text-anchor="middle">(dashed = optional/TBD)</text>
+
+            <!-- Actuators -->
+            <line class="edge" x1="730" y1="325" x2="465" y2="380" marker-end="url(#wa)"/>
+            <path class="edge" d="M755,325 L570,325 L570,475 L550,475" marker-end="url(#wa)"/>
+            <line class="edge" x1="820" y1="325" x2="865" y2="380" marker-end="url(#wa)"/>
+            <path class="edge" d="M845,325 L760,325 L760,475 L780,475" marker-end="url(#wa)"/>
+
+            <!-- CH5/CH6 to fungicide line via right gutter -->
+            <path class="edge-gap" d="M875,325 L1180,325 L1180,752 L730,752" marker-end="url(#wa)"/>
+            <path class="edge-gap" d="M885,325 L1195,325 L1195,822 L730,822" marker-end="url(#wa)"/>
+            <!-- CH7 to inlet valve via left gutter -->
+            <path class="edge-gap" d="M710,325 L10,325 L10,830 L40,830" marker-end="url(#wa)"/>
+
+            <rect class="box" x="380" y="380" width="170" height="50" rx="3"/>
+            <text class="lbl" x="465" y="401" text-anchor="middle">Water Pump 12V</text>
+            <text class="lbl-sub" x="465" y="414" text-anchor="middle">GPIO25 · CH1</text>
+
+            <rect class="box" x="380" y="450" width="170" height="50" rx="3"/>
+            <text class="lbl" x="465" y="471" text-anchor="middle">Water Valve NC</text>
+            <text class="lbl-sub" x="465" y="484" text-anchor="middle">GPIO26 · CH2</text>
+
+            <rect class="box-gap" x="780" y="380" width="170" height="50" rx="3"/>
+            <text class="lbl" x="865" y="401" text-anchor="middle">Feed Pump 12V — TBD</text>
+            <text class="lbl-sub" x="865" y="414" text-anchor="middle">GPIO27 · CH3</text>
+
+            <rect class="box-gap" x="780" y="450" width="170" height="50" rx="3"/>
+            <text class="lbl" x="865" y="471" text-anchor="middle">Feed Valve NC</text>
+            <text class="lbl-sub" x="865" y="484" text-anchor="middle">GPIO33 · CH4</text>
+
+            <line class="edge-accent" x1="465" y1="430" x2="465" y2="450"/>
+            <line class="edge-fert" x1="865" y1="430" x2="865" y2="450"/>
+
+            <!-- Tanks -->
+            <rect class="box" x="40" y="430" width="220" height="90" rx="3"/>
+            <text class="lbl" x="150" y="465" text-anchor="middle" style="font-weight:600">Water Tank</text>
+            <text class="lbl-sub" x="150" y="480" text-anchor="middle">main reservoir</text>
+            <text class="lbl-sub" x="150" y="493" text-anchor="middle">low + full sensors clamped on wall</text>
+            <line class="edge-accent" x1="260" y1="465" x2="380" y2="405" marker-end="url(#wa)"/>
+
+            <rect class="box-gap" x="970" y="430" width="150" height="90" rx="3"/>
+            <text class="lbl" x="1045" y="465" text-anchor="middle">Feed Tank — TBD</text>
+            <text class="lbl-sub" x="1045" y="480" text-anchor="middle">fertilizer solution,</text>
+            <text class="lbl-sub" x="1045" y="493" text-anchor="middle">hand-mixed per week</text>
+            <line class="edge-fert" x1="970" y1="465" x2="950" y2="405" marker-end="url(#wa)"/>
+
+            <!-- Merge -->
+            <path class="edge-accent" d="M465,500 L600,560" marker-end="url(#wa)"/>
+            <path class="edge-fert" d="M865,500 L800,560" marker-end="url(#wa)"/>
+            <text class="lbl-arrow" x="760" y="540" text-anchor="middle">via check valve</text>
+
+            <rect class="box-accent" x="560" y="560" width="280" height="60" rx="3"/>
+            <text class="lbl" x="700" y="584" text-anchor="middle" style="font-weight:600">Fogging Manifold</text>
+            <text class="lbl-sub" x="700" y="600" text-anchor="middle">+ inline filter</text>
+
+            <line class="edge" x1="700" y1="620" x2="700" y2="650" marker-end="url(#wa)"/>
+
+            <rect class="box" x="520" y="650" width="360" height="60" rx="3"/>
+            <text class="lbl" x="700" y="674" text-anchor="middle">30-µm Fogging Nozzles</text>
+            <text class="lbl-sub" x="700" y="690" text-anchor="middle">over P1–P10 benches</text>
+
+            <!-- Auto-fill inlet (bottom-left) -->
+            <rect class="box" x="40" y="740" width="180" height="50" rx="3"/>
+            <text class="lbl" x="130" y="761" text-anchor="middle">Mains / Rainwater</text>
+            <text class="lbl-sub" x="130" y="775" text-anchor="middle">existing supply, not new equipment</text>
+
+            <line class="edge-accent" x1="130" y1="790" x2="130" y2="805" marker-end="url(#wa)"/>
+
+            <rect class="box-gap" x="40" y="805" width="180" height="50" rx="3"/>
+            <text class="lbl" x="130" y="826" text-anchor="middle">Inlet Valve NC — TBD</text>
+            <text class="lbl-sub" x="130" y="840" text-anchor="middle">GPIO19 · CH7</text>
+
+            <line class="edge-accent" x1="130" y1="805" x2="130" y2="520" marker-end="url(#wa)"/>
+
+            <!-- Fungicide line (bottom-right) — deliberately separate from the shared manifold -->
+            <rect class="box-gap" x="580" y="740" width="150" height="45" rx="3"/>
+            <text class="lbl" x="655" y="758" text-anchor="middle">Fungicide Pump — TBD</text>
+            <text class="lbl-sub" x="655" y="771" text-anchor="middle">GPIO17 · CH5</text>
+
+            <rect class="box-gap" x="580" y="800" width="150" height="45" rx="3"/>
+            <text class="lbl" x="655" y="818" text-anchor="middle">Fungicide Valve NC</text>
+            <text class="lbl-sub" x="655" y="831" text-anchor="middle">GPIO18 · CH6</text>
+
+            <line class="edge-gap" x1="655" y1="785" x2="655" y2="800"/>
+
+            <rect class="box-gap" x="760" y="740" width="180" height="70" rx="3"/>
+            <text class="lbl" x="850" y="765" text-anchor="middle">Fungicide Tank — TBD</text>
+            <text class="lbl-sub" x="850" y="779" text-anchor="middle">Oasis Captan 50% WP,</text>
+            <text class="lbl-sub" x="850" y="792" text-anchor="middle">hand-mixed per 14-day cycle</text>
+            <line class="edge-gap" x1="760" y1="772" x2="730" y2="770" marker-end="url(#wa)"/>
+
+            <line class="edge-gap" x1="655" y1="845" x2="655" y2="865" marker-end="url(#wa)"/>
+
+            <rect class="box-gap" x="490" y="865" width="330" height="50" rx="3"/>
+            <text class="lbl" x="655" y="886" text-anchor="middle">Dedicated Coarse Nozzle</text>
+            <text class="lbl-sub" x="655" y="900" text-anchor="middle">its own outlet — never the fine fogging manifold</text>
+          </svg>
+          <figcaption>Grey = GPIO control signal. Purple = power (mains → 12V → 5V, and the relay's separate switched 12V). Blue = plain water. Amber = fertilizer feed. Dashed = not yet ordered (feed line, fungicide line, auto-fill inlet, full-level sensor). The fungicide line deliberately never joins the shared fogging manifold — it sprays through its own coarse, dedicated nozzle instead, so wettable-powder residue can't clog the fine 30-µm nozzles.</figcaption>
+        </figure>
+      </section>
+
+      <section id="power">
+        <div class="sec-head"><span class="sec-num">02</span><h2 class="sec-title">Power budget</h2></div>
+        <p>Worst realistic case is still one pump + its own valve energized at once — the firmware's interlocks (<span class="mono">ActuatorController</span>) never run two lines simultaneously, and never open a valve without its pump. The inlet valve is the one exception: auto-fill can legitimately overlap a mist cycle (different lines entirely), adding a fixed ~0.5A rather than compounding the pump/valve worst case. Either way, you're well inside the SMPS's 5A rating.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Device</th><th>Rail</th><th>Typical draw</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>ESP32 dev board</td><td class="mono">5V</td><td>80–500 mA</td><td>Spikes during Wi-Fi transmit bursts</td></tr>
+              <tr><td>OLED display</td><td class="mono">5V</td><td>~20 mA</td><td></td></tr>
+              <tr><td>DHT22</td><td class="mono">5V</td><td>~1.5 mA</td><td></td></tr>
+              <tr><td>Rain sensor module</td><td class="mono">5V</td><td>~15 mA</td><td></td></tr>
+              <tr><td>Water level sensor (each)</td><td class="mono">5V</td><td>~20 mA</td><td>Non-contact capacitive type — two of these now, low + full</td></tr>
+              <tr><td>Relay module (per energized coil)</td><td class="mono">5V logic</td><td>~70–80 mA</td><td>At most 2 coils on at once by design (one pump+valve pair, plus optionally the inlet)</td></tr>
+              <tr><td>Diaphragm pump 12V 4.5L/min</td><td class="mono">12V switched</td><td>~0.8–1.5 A</td><td>Largest single load — size wiring for this</td></tr>
+              <tr><td>Solenoid valve 12V (each)</td><td class="mono">12V switched</td><td>~0.3–0.5 A</td><td>Draws continuously while held open — now up to 3 of these (water, feed, fungicide) plus the inlet</td></tr>
+              <tr><td>Fungicide dosing pump (peristaltic)</td><td class="mono">12V switched</td><td>~0.1–0.3 A</td><td>Much lighter load than the diaphragm pumps</td></tr>
+              <tr><td><b>Worst case (a diaphragm pump + its valve, plus auto-fill overlapping)</b></td><td class="mono">12V</td><td><b>~2.5 A</b></td><td>Against a 5A supply — still comfortable headroom</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><b>Wire gauge:</b> use at least 18 AWG for anything carrying pump current (the 12V runs to the pumps/valves and the SMPS-to-relay-COM run); 22–24 AWG is fine for every logic/signal wire (GPIO lines, I2C, sensor VCC).</p>
+      </section>
+
+      <section id="pins">
+        <div class="sec-head"><span class="sec-num">03</span><h2 class="sec-title">Pin-by-pin table</h2></div>
+        <p>Matches <span class="mono">firmware/esp32-unit/src/Config.h</span> exactly — if you rewire differently, update that file too, or the firmware will drive the wrong pins.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Component pin</th><th>ESP32 pin</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>OLED SDA</td><td class="mono">GPIO21</td><td>I2C, address 0x3C</td></tr>
+              <tr><td>OLED SCL</td><td class="mono">GPIO22</td><td></td></tr>
+              <tr><td>DHT22 data</td><td class="mono">GPIO4</td><td>Add a 10kΩ pull-up to 3.3V if your module lacks one</td></tr>
+              <tr><td>Rain sensor digital out</td><td class="mono">GPIO16</td><td>Verify polarity with a wet-finger test — see firmware README</td></tr>
+              <tr><td>Water level — low, signal</td><td class="mono">GPIO34</td><td>Input-only pin — correct choice, this is a read-only signal. Raw "liquid present" reading; firmware inverts it to decide "needs a fill"</td></tr>
+              <tr><td>Water level — full, signal</td><td class="mono">GPIO35</td><td>Input-only pin. Not yet ordered — needed for auto-fill</td></tr>
+              <tr><td>Relay IN1 (water pump)</td><td class="mono">GPIO25</td><td></td></tr>
+              <tr><td>Relay IN2 (water valve)</td><td class="mono">GPIO26</td><td></td></tr>
+              <tr><td>Relay IN3 (feed pump)</td><td class="mono">GPIO27</td><td>Reserved — feed pump not yet ordered</td></tr>
+              <tr><td>Relay IN4 (feed valve)</td><td class="mono">GPIO33</td><td></td></tr>
+              <tr><td>Relay IN5 (fungicide pump)</td><td class="mono">GPIO17</td><td>Opt-in — only wire this if <span class="mono">fungicide_automated</span> is turned on for the unit</td></tr>
+              <tr><td>Relay IN6 (fungicide valve)</td><td class="mono">GPIO18</td><td>Feeds the dedicated coarse nozzle — never the fine fogging manifold</td></tr>
+              <tr><td>Relay IN7 (water inlet valve)</td><td class="mono">GPIO19</td><td>Opt-in — only wire this if <span class="mono">autofill_enabled</span> is turned on</td></tr>
+              <tr><td>Relay VCC (logic side)</td><td class="mono">5V rail</td><td>Same rail as ESP32 — <b>do not</b> connect this to the 12V bus</td></tr>
+              <tr><td>Relay COM (switched side)</td><td class="mono">12V bus</td><td>This is what actually powers the pumps/valves through the relay contacts</td></tr>
+              <tr><td>Boot button (Wi-Fi reset)</td><td class="mono">GPIO0</td><td>Built into most devkits — hold 3s at power-on to re-pair</td></tr>
+              <tr><td>All GND (ESP32, relay logic, sensors)</td><td class="mono">common ground</td><td>Every ground here must tie together, or the relay never sees a valid trigger level</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tanks">
+        <div class="sec-head"><span class="sec-num">04</span><h2 class="sec-title">Tank plumbing</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Connection</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr><td>Water Tank → Water Pump</td><td>Short suction hose, strainer/mesh at the tank outlet to keep debris out of the pump and nozzles</td></tr>
+              <tr><td>Water Pump → Water Valve → Manifold</td><td>Straight line, no branching — this is the daily plain-misting path</td></tr>
+              <tr><td>Feed Tank → Feed Pump</td><td>Same as the water side, once the feed pump is ordered</td></tr>
+              <tr><td>Feed Pump → Feed Valve → check valve → Manifold</td><td>The check valve is the one non-negotiable part here — without it, fertilizer can siphon back into the shared manifold between runs</td></tr>
+              <tr><td>Water level sensors (low + full)</td><td>Both clamp to the <i>outside</i> of the Water Tank wall at different heights — non-contact, nothing touches the water</td></tr>
+              <tr><td>Manifold → Nozzles</td><td>Inline filter right before the nozzles — the last line of defense against clogging</td></tr>
+              <tr><td>Fungicide Tank → Fungicide Pump → Fungicide Valve → dedicated coarse nozzle</td><td>Deliberately its own plumbing run, start to finish — this line never joins the water/feed manifold at any point</td></tr>
+              <tr><td>Mains/Rainwater → Inlet Valve → Water Tank</td><td>Opens when the low sensor clears (tank needs water), closes on the full sensor or the firmware's timeout safety cutoff — whichever comes first</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="warnings">
+        <div class="sec-head"><span class="sec-num">05</span><h2 class="sec-title">Before you power it on</h2></div>
+        <div class="callout">
+          <h3>Five things worth checking with a multimeter first</h3>
+          <div class="sub">All cheap and all easy to get backwards on a first build.</div>
+          <ul class="gap-list">
+            <li><b>Relay VCC vs COM are two different rails.</b><span class="why">VCC (logic) is 5V from the buck converter; COM (switched) is 12V straight from the bus. Wiring the pump's 12V into the logic VCC pin will kill the relay board.</span></li>
+            <li><b>Common ground, always.</b><span class="why">ESP32 GND, relay logic GND, and the 12V supply's ground all need to be tied together — otherwise the ESP32's GPIO signal has no shared reference and the relay won't trigger reliably, if at all.</span></li>
+            <li><b>Confirm active-low vs active-high on the relay board before flashing.</b><span class="why">Most cheap boards energize on a LOW signal. The firmware's <span class="mono">RELAY_ACTIVE_LOW</span> flag in Config.h must match your actual board, or every relay will be inverted — pumps running when they should be off.</span></li>
+            <li><b>Fuse goes right after the SMPS, before anything else.</b><span class="why">It protects the whole 12V bus, not just one device — put it anywhere else and part of the circuit is unprotected.</span></li>
+            <li><b>Power up logic before actuators.</b><span class="why">Get the ESP32 booting and the OLED showing readings first, with the pump/valve wires disconnected. Only connect the 12V actuator wiring once you've confirmed the relay clicks on command — much easier to debug a GPIO issue without a pump also running.</span></li>
+            <li><b>Physically double-check the fungicide line never tees into the water/feed manifold.</b><span class="why">This is a plumbing mistake, not a wiring one — the firmware has no way to detect it. If it's plumbed wrong, the first automated dose will run wettable-powder residue through your 30-µm nozzles.</span></li>
+            <li><b>Test the auto-fill timeout before trusting it unattended.</b><span class="why">Temporarily cover the full sensor so it never triggers, and confirm the inlet valve actually closes on its own after <span class="mono">AUTOFILL_MAX_SECONDS</span> (10 minutes by default) — that's the only thing standing between a sensor failure and an overflowing tank.</span></li>
+          </ul>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer>
+    <span>plant-automation · wiring reference v0.2</span>
+    <span>matches firmware Config.h — keep both in sync if you rewire</span>
+  </footer>
+
+</div>

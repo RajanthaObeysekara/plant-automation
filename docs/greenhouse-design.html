@@ -1,0 +1,416 @@
+<meta charset="utf-8">
+<title>Greenhouse Build Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #f7f8f4; --surface: #ffffff; --surface-2: #eef1ea;
+    --ink: #1e2a20; --muted: #5c6b5e; --faint: #8b978c;
+    --line: #d8ded2; --line-strong: #b9c4b3;
+    --water: #1c6e8c; --water-ink: #0f4f66;
+    --fert: #b06a1e; --fert-ink: #8a5217;
+    --good: #3f7d4a; --warn: #b06a1e; --crit: #a83a2e;
+    --shadow: 0 1px 2px rgba(30,42,32,0.06), 0 4px 16px rgba(30,42,32,0.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12160f; --surface: #181d15; --surface-2: #1e2419;
+      --ink: #e8ece3; --muted: #a2ae9b; --faint: #71806f;
+      --line: #2b3226; --line-strong: #3c4535;
+      --water: #5fc1e8; --water-ink: #8fd6f2;
+      --fert: #e3a455; --fert-ink: #eebd7d;
+      --good: #7bc487; --warn: #e3a455; --crit: #e08579;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12160f; --surface: #181d15; --surface-2: #1e2419;
+    --ink: #e8ece3; --muted: #a2ae9b; --faint: #71806f;
+    --line: #2b3226; --line-strong: #3c4535;
+    --water: #5fc1e8; --water-ink: #8fd6f2;
+    --fert: #e3a455; --fert-ink: #eebd7d;
+    --good: #7bc487; --warn: #e3a455; --crit: #e08579;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:16px; line-height:1.55; }
+  h1,h2,h3 { font-weight:700; text-wrap:balance; color:var(--ink); }
+  p { max-width:70ch; }
+  a { color:var(--water-ink); }
+  .sheet { max-width:1180px; margin:0 auto; padding:48px 32px 96px; }
+  .head { border-bottom:1px solid var(--line-strong); padding-bottom:28px; margin-bottom:36px; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.11em; text-transform:uppercase; color:var(--water-ink); display:flex; gap:10px; align-items:center; margin-bottom:14px; }
+  .eyebrow::before { content:""; width:8px; height:8px; background:var(--water); display:inline-block; }
+  h1.title { font-size:clamp(28px,4vw,40px); margin:0 0 12px; letter-spacing:-.01em; }
+  .dek { color:var(--muted); font-size:17px; max-width:64ch; margin:0 0 20px; }
+  .meta-row { display:flex; flex-wrap:wrap; gap:8px 28px; font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--muted); }
+  .meta-row b { color:var(--ink); font-weight:600; }
+  .layout { display:grid; grid-template-columns:200px minmax(0,1fr); gap:48px; align-items:start; }
+  @media (max-width:860px) { .layout{grid-template-columns:1fr;} nav.toc{position:static;margin-bottom:8px;} }
+  nav.toc { position:sticky; top:28px; font-size:13.5px; }
+  nav.toc .toc-label { font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin-bottom:10px; }
+  nav.toc ol { list-style:none; margin:0; padding:0; border-left:2px solid var(--line); }
+  nav.toc li a { display:block; padding:6px 0 6px 14px; color:var(--muted); text-decoration:none; border-left:2px solid transparent; margin-left:-2px; }
+  nav.toc li a:hover { color:var(--ink); border-left-color:var(--water); }
+  main { min-width:0; }
+  section { margin-bottom:56px; scroll-margin-top:20px; }
+  section > .sec-head { display:flex; align-items:baseline; gap:12px; margin-bottom:16px; }
+  .sec-num { font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--faint); }
+  h2.sec-title { font-size:22px; margin:0; }
+  .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:3px; }
+  table { width:100%; border-collapse:collapse; font-size:14.5px; min-width:560px; }
+  thead th { text-align:left; font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); background:var(--surface-2); padding:10px 14px; border-bottom:1px solid var(--line-strong); white-space:nowrap; }
+  tbody td { padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--surface-2); }
+  td.mono, th.mono { font-family:"IBM Plex Mono",monospace; font-size:13px; }
+  .chip { display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.04em; text-transform:uppercase; padding:2px 7px; border-radius:3px; border:1px solid currentColor; white-space:nowrap; }
+  .chip.gap { color:var(--warn); }
+  .chip.ok { color:var(--good); }
+  .chip.new { color:var(--water-ink); }
+  figure.schem { margin:20px 0 8px; border:1px solid var(--line-strong); background:var(--surface); border-radius:4px; box-shadow:var(--shadow); position:relative; padding:22px 20px 14px; }
+  figure.schem::before, figure.schem::after, figure.schem .tick-br, figure.schem .tick-bl { content:""; position:absolute; width:10px; height:10px; border-color:var(--line-strong); }
+  figure.schem::before { top:8px; left:8px; border-top:2px solid; border-left:2px solid; }
+  figure.schem::after { top:8px; right:8px; border-top:2px solid; border-right:2px solid; }
+  figure.schem .tick-bl { bottom:8px; left:8px; border-bottom:2px solid; border-left:2px solid; }
+  figure.schem .tick-br { bottom:8px; right:8px; border-bottom:2px solid; border-right:2px solid; }
+  figure.schem svg { display:block; width:100%; height:auto; overflow:visible; }
+  figure.schem figcaption { font-size:13px; color:var(--muted); margin-top:12px; padding-top:12px; border-top:1px dashed var(--line); }
+  svg text { fill:currentColor; font-family:"IBM Plex Mono",monospace; }
+  svg .lbl { font-size:12px; fill:var(--ink); }
+  svg .lbl-sub { font-size:10px; fill:var(--muted); }
+  svg .lbl-arrow { font-size:10.5px; fill:var(--muted); }
+  svg .box { fill:var(--surface); stroke:var(--line-strong); stroke-width:1.4; }
+  svg .box-accent { fill:var(--surface); stroke:var(--water); stroke-width:1.6; }
+  svg .box-gap { fill:none; stroke:var(--warn); stroke-width:1.4; stroke-dasharray:5 4; }
+  svg .edge { stroke:var(--faint); stroke-width:1.3; fill:none; }
+  svg .edge-accent { stroke:var(--water); stroke-width:1.6; fill:none; }
+  svg .edge-fert { stroke:var(--fert); stroke-width:1.6; fill:none; }
+  svg .edge-gap { stroke:var(--faint); stroke-width:1.1; fill:none; stroke-dasharray:3 3; }
+  svg .dim { stroke:var(--muted); stroke-width:1; fill:none; }
+  svg .dim-text { font-size:11px; fill:var(--muted); }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px; }
+  .callout { border:1px solid var(--line-strong); border-left:4px solid var(--warn); background:var(--surface); border-radius:3px; padding:18px 20px; }
+  .callout h3 { margin:0 0 4px; font-size:15px; }
+  .callout .sub { color:var(--muted); font-size:13.5px; margin-bottom:14px; }
+  .gap-list { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+  .gap-list li { display:grid; grid-template-columns:20px 1fr; column-gap:10px; row-gap:2px; font-size:14px; }
+  .gap-list li::before { content:""; grid-column:1; grid-row:1; width:8px; height:8px; border-radius:50%; background:var(--warn); margin-top:6px; align-self:start; }
+  .gap-list b { grid-column:2; grid-row:1; font-weight:600; }
+  .gap-list span.why { grid-column:2; grid-row:2; display:block; color:var(--muted); font-size:13px; margin-top:2px; }
+  .card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; }
+  .card h3 { font-size:14.5px; margin:0 0 6px; }
+  .card p { font-size:13.5px; color:var(--muted); margin:0 0 8px; }
+  .card .detail { font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--faint); border-top:1px dashed var(--line); padding-top:8px; }
+  footer { margin-top:64px; padding-top:20px; border-top:1px solid var(--line); font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+</style>
+
+<div class="sheet">
+
+  <div class="head">
+    <div class="eyebrow">Build Reference · Rev 0.1</div>
+    <h1 class="title">Greenhouse &amp; Auto-Fertigation Design</h1>
+    <p class="dek">A reference structure and a fully automatic mixing-and-dosing fertigation system to grow the Kadawatha setup from 10 pots into a real commercial house — plus everything still missing from the current equipment list to build it.</p>
+    <div class="meta-row">
+      <span><b>Date</b> 2026-08-30</span>
+      <span><b>Status</b> Reference design — pending site survey</span>
+      <span><b>Scales from</b> 10 pots → ~900–1,000 pots</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <nav class="toc">
+      <div class="toc-label">Contents</div>
+      <ol>
+        <li><a href="#assumptions">Assumptions</a></li>
+        <li><a href="#structure">Structure</a></li>
+        <li><a href="#layout">Floor plan</a></li>
+        <li><a href="#fertigation">Auto-fertigation</a></li>
+        <li><a href="#dosing-logic">Dosing sequence</a></li>
+        <li><a href="#controls">Controls &amp; wiring</a></li>
+        <li><a href="#equipment">Missing equipment</a></li>
+        <li><a href="#phasing">Build phasing</a></li>
+        <li><a href="#open-questions">Open questions</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <section id="assumptions">
+        <div class="sec-head"><span class="sec-num">01</span><h2 class="sec-title">Assumptions — read this first</h2></div>
+        <div class="callout">
+          <h3>This is a sized template, not a survey of your actual land</h3>
+          <div class="sub">I have no data on your plot's real dimensions, orientation, existing structures, or soil — none of that has been shared, and I'm not going to invent specifics about your property and present them as fact. What follows is a realistic, buildable reference size for the next phase (a smallholder commercial orchid house), scaled from your current 10-pot setup and general good practice for Kadawatha's climate. Treat every measurement below as a starting point to check against your actual site, not a survey result.</div>
+          <ul class="gap-list">
+            <li><b>Footprint used here: 6 m × 12 m (72 m²).</b><span class="why">A common size for a smallholder net-house in Sri Lanka — big enough to be a real step up from a bench, small enough to self-build and fund incrementally. Modular in 6 m bays, so it extends to 6×18 m, 6×24 m, etc. if your land allows.</span></li>
+            <li><b>Climate design target: Kadawatha's wet-zone tropics — 70–85% RH, 26–32°C, monsoon rain from both the SW (May–Sep) and NE (Dec–Feb).</b><span class="why">This drives the "rain-break roof + open shade-net walls" structure below rather than a sealed glasshouse, which would overheat in this climate.</span></li>
+            <li><b>You'll need to confirm: actual plot dimensions and shape, water source (mains/well/rainwater), electrical supply capacity, and whether the site is level or needs grading.</b><span class="why">See <a href="#open-questions">Open questions</a> — these change the design meaningfully and only you can answer them.</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="structure">
+        <div class="sec-head"><span class="sec-num">02</span><h2 class="sec-title">Structure</h2></div>
+        <p>Epiphytic orchids want filtered light and constant airflow, not a sealed enclosure — the same logic already in the care plan (60–70% shade net, clear roof only to break monsoon rain). The structure below is a <b>shade-net house with a rain-break roof</b>, not a conventional glasshouse: solid overhead, open on the sides.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Element</th><th>Spec</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td>Frame</td><td>Galvanized steel (GI) pipe, concrete footings</td><td>Corrosion-resistant in high humidity; footings resist monsoon wind uplift</td></tr>
+              <tr><td>Height</td><td>2.4 m eaves / 3.2 m ridge</td><td>Stack ventilation — hot humid air rises and escapes at the ridge instead of pooling on the plants</td></tr>
+              <tr><td>Roof</td><td>200-micron UV-stabilized clear PE film or corrugated polycarbonate, pitched ≥15°</td><td>Breaks direct monsoon rain (crown-rot risk) while staying translucent; pitch sheds water fast</td></tr>
+              <tr><td>Walls</td><td>50–70% green shade net, full height, roll-up sides</td><td>Matches the existing shading spec; open sides keep air moving — still and humid is exactly what fungal disease wants</td></tr>
+              <tr><td>Gutters</td><td>PVC gutter along both eaves to a first-flush diverter</td><td>Roof becomes your rainwater harvesting catchment — free, soft water for a plain-water tank</td></tr>
+              <tr><td>Perimeter</td><td>Low block wall (~30 cm) under the net</td><td>Keeps splash-back soil/debris off the lowest bench row</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="layout">
+        <div class="sec-head"><span class="sec-num">03</span><h2 class="sec-title">Floor plan</h2></div>
+        <p>Three raised benches running the length of the house, wide aisles for a wheelbarrow or trolley, and a utility bay at the entrance holding every tank and the control panel in one serviceable spot.</p>
+
+        <figure class="schem">
+          <span class="tick-bl"></span><span class="tick-br"></span>
+          <svg viewBox="0 0 460 720" role="img" aria-label="Top-down floor plan: a 6 by 12 metre house with a utility bay across the entrance holding the tanks and control panel, three 1-metre benches running the length separated by 0.7 metre aisles and 0.8 metre side aisles, and a door beside the utility bay.">
+            <rect class="box" x="60" y="40" width="300" height="600" rx="2"/>
+
+            <rect class="box-accent" x="60" y="40" width="300" height="75"/>
+            <text class="lbl" x="210" y="70" text-anchor="middle" style="font-weight:600">Utility bay</text>
+            <text class="lbl-sub" x="210" y="86" text-anchor="middle">tanks · dosing pumps · control panel</text>
+            <text class="lbl-sub" x="210" y="100" text-anchor="middle">1.5 m deep</text>
+
+            <line class="edge" x1="60" y1="130" x2="60" y2="180" stroke-width="4" stroke="var(--bg)"/>
+            <text class="lbl-sub" x="35" y="160" text-anchor="middle" transform="rotate(-90 35 160)">DOOR</text>
+
+            <rect class="box" x="100" y="125" width="50" height="505"/>
+            <rect class="box" x="185" y="125" width="50" height="505"/>
+            <rect class="box" x="270" y="125" width="50" height="505"/>
+            <text class="lbl-sub" x="125" y="380" text-anchor="middle" transform="rotate(-90 125 380)">Bench 1</text>
+            <text class="lbl-sub" x="210" y="380" text-anchor="middle" transform="rotate(-90 210 380)">Bench 2</text>
+            <text class="lbl-sub" x="295" y="380" text-anchor="middle" transform="rotate(-90 295 380)">Bench 3</text>
+
+            <text class="dim-text" x="80" y="378" text-anchor="middle" transform="rotate(-90 80 378)">0.8 m aisle</text>
+            <text class="dim-text" x="165" y="378" text-anchor="middle" transform="rotate(-90 165 378)">0.7 m</text>
+            <text class="dim-text" x="252" y="378" text-anchor="middle" transform="rotate(-90 252 378)">0.7 m</text>
+            <text class="dim-text" x="340" y="378" text-anchor="middle" transform="rotate(-90 340 378)">0.8 m aisle</text>
+
+            <line class="dim" x1="60" y1="18" x2="360" y2="18" marker-start="url(#dtick)" marker-end="url(#dtick)"/>
+            <text class="dim-text" x="210" y="12" text-anchor="middle">6 m</text>
+
+            <line class="dim" x1="20" y1="40" x2="20" y2="640" marker-start="url(#dtick)" marker-end="url(#dtick)"/>
+            <text class="dim-text" x="14" y="340" text-anchor="middle" transform="rotate(-90 14 340)">12 m</text>
+
+            <defs>
+              <marker id="dtick" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <path d="M4,0 L4,8" stroke="var(--muted)" stroke-width="1"/>
+              </marker>
+            </defs>
+          </svg>
+          <figcaption>≈9.5 m of usable bench length per row at ~30 pots/m² of 3–4″ pots on 18 cm spacing ≈ 950–1,000 pots across all three benches — a template capacity, not a target you have to fill immediately.</figcaption>
+        </figure>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Bench spec</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Height</td><td>75 cm (waist height, standing access)</td></tr>
+              <tr><td>Surface</td><td>Galvanized weld-mesh or slatted PVC on a steel frame — open surface for airflow and drainage under the pots</td></tr>
+              <tr><td>Width</td><td>1 m (reachable from both sides)</td></tr>
+              <tr><td>Pot spacing</td><td>~18 cm centers — enough gap between pots for air movement; tighter spacing is exactly how crown rot spreads bench-to-bench</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="fertigation">
+        <div class="sec-head"><span class="sec-num">04</span><h2 class="sec-title">Auto-fertigation — mixing, not just dosing</h2></div>
+        <p>The current design (see the main architecture doc) has the grower pre-mix each week's fertilizer by hand into a single feed tank. This version automates the mixing step itself: two concentrated stock tanks, a small batch mixing tank, and dosing pumps that measure the correct stock volume in on the day it's due — nobody has to remember to mix a jug.</p>
+
+        <figure class="schem">
+          <span class="tick-bl"></span><span class="tick-br"></span>
+          <svg viewBox="0 0 1000 660" role="img" aria-label="Water tank and two fertilizer stock tanks feed a central mixing tank via a fill valve and two dosing pumps. The mixing tank is drawn out by a pump and valve to the shared fogging manifold over the benches. The water tank also has a direct line straight to the same manifold for plain daily misting, bypassing the mixing tank entirely.">
+            <defs>
+              <marker id="ga" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <polygon points="0 0, 7 3, 0 6" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <rect class="box-accent" x="40" y="30" width="200" height="60" rx="3"/>
+            <text class="lbl" x="140" y="55" text-anchor="middle" style="font-weight:600">Water Tank</text>
+            <text class="lbl-sub" x="140" y="70" text-anchor="middle">rainwater + mains topup, 500–1000 L</text>
+
+            <rect class="box" x="400" y="30" width="160" height="50" rx="3"/>
+            <text class="lbl" x="480" y="52" text-anchor="middle">Stock A</text>
+            <text class="lbl-sub" x="480" y="66" text-anchor="middle">Basfoliar P-40 conc.</text>
+
+            <rect class="box" x="600" y="30" width="160" height="50" rx="3"/>
+            <text class="lbl" x="680" y="52" text-anchor="middle">Stock B</text>
+            <text class="lbl-sub" x="680" y="66" text-anchor="middle">Mugasole Treble 20 conc.</text>
+
+            <rect class="box-accent" x="410" y="190" width="240" height="80" rx="3"/>
+            <text class="lbl" x="530" y="220" text-anchor="middle" style="font-weight:600">Mixing Tank</text>
+            <text class="lbl-sub" x="530" y="236" text-anchor="middle">50–100 L, measured batch per feed day</text>
+            <text class="lbl-sub" x="530" y="250" text-anchor="middle">+ EC/pH probe (optional)</text>
+
+            <path class="edge-accent" d="M140,90 L140,140 L410,140 L410,190" marker-end="url(#ga)"/>
+            <text class="lbl-arrow" x="270" y="132" text-anchor="middle">Fill Valve · CH3</text>
+
+            <path class="edge-fert" d="M480,80 L480,190" marker-end="url(#ga)"/>
+            <text class="lbl-arrow" x="480" y="140" text-anchor="middle">Dosing Pump A</text>
+            <text class="lbl-arrow" x="480" y="153" text-anchor="middle">CH4</text>
+
+            <path class="edge-fert" d="M680,80 L680,150 L640,190" marker-end="url(#ga)"/>
+            <text class="lbl-arrow" x="680" y="140" text-anchor="middle">Dosing Pump B</text>
+            <text class="lbl-arrow" x="680" y="153" text-anchor="middle">CH5</text>
+
+            <path class="edge-gap" d="M650,215 L700,215 L700,260 L650,260" marker-end="url(#ga)"/>
+            <text class="lbl-arrow" x="770" y="240" text-anchor="middle">Agitation Pump · CH8</text>
+            <text class="lbl-arrow" x="770" y="253" text-anchor="middle">(optional recirculation)</text>
+
+            <path class="edge-fert" d="M480,270 L480,320 L560,360" marker-end="url(#ga)"/>
+            <text class="lbl-arrow" x="470" y="310" text-anchor="middle">Draw Pump · CH6</text>
+            <text class="lbl-arrow" x="470" y="323" text-anchor="middle">Draw Valve · CH7</text>
+
+            <path class="edge-accent" d="M140,90 L140,360 L500,395" marker-end="url(#ga)"/>
+            <text class="lbl-arrow" x="160" y="230" text-anchor="middle">Water Pump · CH1</text>
+            <text class="lbl-arrow" x="160" y="243" text-anchor="middle">Water Valve · CH2</text>
+            <text class="lbl-arrow" x="160" y="256" text-anchor="middle">(direct — bypasses mixing tank)</text>
+
+            <rect class="box-accent" x="440" y="395" width="220" height="55" rx="3"/>
+            <text class="lbl" x="550" y="418" text-anchor="middle" style="font-weight:600">Shared Fogging Manifold</text>
+            <text class="lbl-sub" x="550" y="434" text-anchor="middle">+ inline filter</text>
+
+            <line class="edge" x1="550" y1="450" x2="550" y2="480" marker-end="url(#ga)"/>
+            <rect class="box" x="380" y="480" width="340" height="55" rx="3"/>
+            <text class="lbl" x="550" y="503" text-anchor="middle">30-µm Fogging Nozzles over benches</text>
+            <text class="lbl-sub" x="550" y="519" text-anchor="middle">bench 1 / 2 / 3</text>
+
+            <rect class="box" x="40" y="580" width="300" height="60" rx="3"/>
+            <text class="lbl" x="190" y="605" text-anchor="middle" style="font-weight:600">ESP32 + 8-Ch Relay Controller</text>
+            <text class="lbl-sub" x="190" y="621" text-anchor="middle">drives CH1–CH8, reads EC/pH if fitted</text>
+          </svg>
+          <figcaption>Plain daily misting runs Water Tank → CH1/CH2 → manifold directly, never touching the mixing tank. Only a feed day fills, doses, and draws from the Mixing Tank — see the sequence below.</figcaption>
+        </figure>
+      </section>
+
+      <section id="dosing-logic">
+        <div class="sec-head"><span class="sec-num">05</span><h2 class="sec-title">Dosing sequence — what happens on a feed day</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Step</th><th>Action</th><th>Channel(s)</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">1</td><td>Fill the mixing tank with a measured volume of plain water</td><td class="mono">CH3</td></tr>
+              <tr><td class="mono">2</td><td>Run the correct stock pump for a calculated duration — Basfoliar in weeks 1–2, Mugasole in weeks 3–4, neither in week 5 (flush)</td><td class="mono">CH4 or CH5</td></tr>
+              <tr><td class="mono">3</td><td>Recirculate briefly to homogenize the batch (optional but recommended)</td><td class="mono">CH8</td></tr>
+              <tr><td class="mono">4</td><td>Draw the mixed batch out to the shared manifold and spray</td><td class="mono">CH6, CH7</td></tr>
+              <tr><td class="mono">5</td><td>Refill the mixing tank with a small plain-water rinse and draw that through too</td><td class="mono">CH3, then CH6/CH7</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Dose duration is just flow-rate math: a peristaltic dosing pump rated at, say, 100 mL/min needs <span class="mono">desiredStockMl ÷ 100 × 60</span> seconds of runtime. Scale the 0.25 g/250 mL hand-mix ratio up to whatever batch volume the mixing tank holds — the ratio doesn't change, only the total volume. The rinse step exists so the next scheduled plain-water mist doesn't carry yesterday's fertilizer residue through the same nozzles, and so Basfoliar and Mugasole never sit mixed together in the tank between rotation phases.</p>
+      </section>
+
+      <section id="controls">
+        <div class="sec-head"><span class="sec-num">06</span><h2 class="sec-title">Controls &amp; wiring changes</h2></div>
+        <p>This adds four channels to the 4-channel design in the main architecture doc — <b>plan for an 8-channel relay setup</b> (two 4-channel DC-rated boards, or one 8-channel board) rather than the single 4-channel board currently in the cart.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th class="mono">Channel</th><th>Drives</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">CH1 / CH2</td><td>Water pump / valve — direct daily misting line</td><td><span class="chip ok">already planned</span></td></tr>
+              <tr><td class="mono">CH3</td><td>Mixing-tank fill valve</td><td><span class="chip new">new</span></td></tr>
+              <tr><td class="mono">CH4</td><td>Dosing pump A — Basfoliar P-40 stock</td><td><span class="chip new">new</span></td></tr>
+              <tr><td class="mono">CH5</td><td>Dosing pump B — Mugasole Treble 20 stock</td><td><span class="chip new">new</span></td></tr>
+              <tr><td class="mono">CH6 / CH7</td><td>Mixing-tank draw pump / valve — feeds the manifold</td><td><span class="chip new">new</span></td></tr>
+              <tr><td class="mono">CH8</td><td>Agitation / recirculation pump (optional)</td><td><span class="chip new">new, optional</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>On the firmware side, this is the same non-blocking state-machine pattern already built for the mist/feed cycle (see <span class="mono">firmware/esp32-unit/src/main.cpp</span>) — it just grows two more states: <span class="mono">FILLING_MIX</span> and <span class="mono">DOSING</span>, inserted before the existing <span class="mono">FEEDING</span> state, with the stock pump and duration chosen by the same week-of-rotation logic already in <span class="mono">RuleEngine</span>.</p>
+      </section>
+
+      <section id="equipment">
+        <div class="sec-head"><span class="sec-num">07</span><h2 class="sec-title">Missing equipment</h2></div>
+        <p>Everything below is in addition to the swap-the-SSR / verify-the-nozzles items already flagged in the main architecture doc's open items — those still stand.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Purpose</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>GI pipe frame + concrete footings</td><td>Structure</td><td>Size to your actual plot — see <a href="#open-questions">open questions</a></td></tr>
+              <tr><td>UV-stabilized clear PE roof film or polycarbonate</td><td>Rain-break roof</td><td>Polycarbonate costs more, lasts far longer under UV + monsoon</td></tr>
+              <tr><td>60–70% shade net, full perimeter</td><td>Walls</td><td>Matches the existing shading spec — buy the roll-up/adjustable kind if budget allows</td></tr>
+              <tr><td>PVC guttering + first-flush diverter</td><td>Rainwater harvest into the main tank</td><td>First-flush diverter keeps roof grit out of the tank</td></tr>
+              <tr><td>Raised benches (weld-mesh or slatted, steel frame)</td><td>Growing surface</td><td>Open surface, not solid — solid benches trap moisture underneath</td></tr>
+              <tr><td>Main water tank, 500–1000 L, food-grade</td><td>Plain-water reservoir</td><td>With float valve for auto-topup from mains/well</td></tr>
+              <tr><td>2× stock concentrate tanks, 20–50 L</td><td>Basfoliar / Mugasole concentrate</td><td>Opaque or shaded — light degrades some fertilizer formulations</td></tr>
+              <tr><td>Mixing/batch tank, 50–100 L</td><td>Where the dose actually happens</td><td>Include a drain valve for cleaning</td></tr>
+              <tr><td>2× peristaltic dosing pumps</td><td>Precise stock injection (CH4, CH5)</td><td>Chemical-resistant tube (silicone/Norprene), not the pump's stock tubing</td></tr>
+              <tr><td>Mixing-tank draw pump + agitation pump</td><td>CH6, CH8</td><td>Small 12V diaphragm pumps, same family as the existing water pump</td></tr>
+              <tr><td>3× additional solenoid valves</td><td>CH3, CH7, and a spare</td><td>Same 12V NC valves already in the cart</td></tr>
+              <tr><td>Float switches ×2</td><td>Main tank low-level cutoff + mixing tank overfill cutoff</td><td>Protects pumps from dry-running and stops a stuck fill valve from overflowing</td></tr>
+              <tr><td>Check valves ×3</td><td>Each stock line + the mixing-tank draw line</td><td>Stops any concentrate siphoning back where it shouldn't</td></tr>
+              <tr><td>Sediment pre-filter</td><td>On the main tank inlet</td><td>Protects nozzles and dosing pumps from roof/tank grit</td></tr>
+              <tr><td>EC probe (and pH probe, optional)</td><td>Verifies the mixing tank actually hit the intended concentration</td><td>e.g. DFRobot analog EC/pH kits — need a small ESP32 ADC breakout</td></tr>
+              <tr><td>8-channel DC relay setup</td><td>Replaces the single 4-channel board</td><td>Two 4-channel boards is the simpler sourcing option</td></tr>
+              <tr><td>Weatherproof electronics enclosure</td><td>Houses the ESP32, relays, dosing drivers</td><td>IP65-rated — this now lives in a humid net-house, not indoors</td></tr>
+              <tr><td>Food-grade + chemical-resistant tubing, fittings, valves</td><td>All the new plumbing runs</td><td>Two tubing types: potable for water, resistant for concentrate</td></tr>
+              <tr><td>Uprated power supply / wiring</td><td>Now driving up to 5 pumps + relays</td><td>Add up each pump's rated current before sizing the 12V supply</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="phasing">
+        <div class="sec-head"><span class="sec-num">08</span><h2 class="sec-title">Build phasing</h2></div>
+        <div class="card-grid">
+          <div class="card">
+            <h3>Phase A — now</h3>
+            <p>Finish the 10-pot bench exactly as already designed: DC relay swap, real soil— sorry, canopy sensor mounting, dosing pump for a single hand-mixed feed tank.</p>
+            <div class="detail">no structure yet — proves the control logic</div>
+          </div>
+          <div class="card">
+            <h3>Phase B — structure</h3>
+            <p>Build the shade-net house and benches. Move the existing 10 pots in. Still one hand-mixed feed tank — the structure is the only new variable.</p>
+            <div class="detail">validates the physical space before automating dosing</div>
+          </div>
+          <div class="card">
+            <h3>Phase C — auto-fertigation</h3>
+            <p>Add the stock tanks, mixing tank, and extra relay channels from this document. Only once misting is already boring and reliable.</p>
+            <div class="detail">the riskiest phase — most new hardware, most new firmware states</div>
+          </div>
+          <div class="card">
+            <h3>Phase D — scale out</h3>
+            <p>Add units per the greenhouse fleet architecture (one ESP32 per room/bench group), fill more of the bench capacity, extend the house in 6 m bays if the land allows.</p>
+            <div class="detail">same backend, same firmware — just more units</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="open-questions">
+        <div class="sec-head"><span class="sec-num">09</span><h2 class="sec-title">Open questions — only you can answer these</h2></div>
+        <div class="callout">
+          <h3>Before any of this gets built</h3>
+          <div class="sub">The dimensions and equipment list above are a template. These are the specifics I have no way to know:</div>
+          <ul class="gap-list">
+            <li><b>Actual plot dimensions and shape.</b><span class="why">Determines whether 6×12 m fits at all, and how the modular 6 m bays should orient.</span></li>
+            <li><b>Water source.</b><span class="why">Rainwater harvest alone may not cover dry spells — is there a well or mains connection to back it up?</span></li>
+            <li><b>Electrical supply.</b><span class="why">Five pumps plus a relay controller need a real circuit, not an extension cord from the house.</span></li>
+            <li><b>Site slope and soil.</b><span class="why">Affects footings and whether the floor needs grading or a hardstanding for the benches.</span></li>
+            <li><b>Budget and timeline.</b><span class="why">Changes whether Phase C (auto-fertigation) is worth building at all versus staying with hand-mixed feeding indefinitely.</span></li>
+          </ul>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer>
+    <span>plant-automation · greenhouse design v0.1</span>
+    <span>template dimensions — verify against your actual site before building</span>
+  </footer>
+
+</div>
