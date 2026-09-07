@@ -20,14 +20,20 @@ function buildDeviceRouter(io) {
         feedStartDate: s.feed_start_date,
         preWaterWaitMinutes: s.pre_water_wait_minutes,
         doseMl: s.dose_ml,
+        mixRatioMlPerL: Number(s.feed_mix_ratio_ml_per_l),
+        batchWaterL: Number(s.feed_batch_water_l),
       },
       fungicide: {
         intervalDays: s.fungicide_interval_days,
         lastSprayedDate: s.fungicide_last_sprayed_date,
         doseMl: s.fungicide_dose_ml,
         automated: s.fungicide_automated,
+        mixRatioMlPerL: Number(s.fungicide_mix_ratio_ml_per_l),
+        batchWaterL: Number(s.fungicide_batch_water_l),
       },
       autofillEnabled: s.autofill_enabled,
+      dechlorinateHours: s.dechlorinate_hours,
+      pumpFlowLpm: Number(s.pump_flow_lpm),
       paused: s.paused,
       skipFeedOnce: s.skip_feed_once,
       syncedAt: new Date().toISOString(),
@@ -36,7 +42,8 @@ function buildDeviceRouter(io) {
 
   router.post('/status', async (req, res) => {
     const { activity } = req.body || {};
-    const allowed = ['idle', 'misting', 'feeding'];
+    // Matches every status string the firmware actually posts (main.cpp)
+    const allowed = ['idle', 'misting', 'feeding', 'filling', 'fungicide', 'dechlorinating', 'overflow'];
     if (!allowed.includes(activity)) {
       return res.status(400).json({ error: `activity must be one of ${allowed.join(', ')}` });
     }
@@ -51,10 +58,11 @@ function buildDeviceRouter(io) {
   });
 
   router.post('/telemetry', async (req, res) => {
-    const { humidity, tempC, raining } = req.body || {};
+    const { humidity, tempC, raining, waterLow, waterFull, waterOverflow } = req.body || {};
     const { rows } = await pool.query(
-      'INSERT INTO telemetry (unit_id, humidity, temp_c, raining) VALUES ($1,$2,$3,$4) RETURNING *',
-      [req.unit.id, humidity, tempC, !!raining]
+      `INSERT INTO telemetry (unit_id, humidity, temp_c, raining, water_low, water_full, water_overflow)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [req.unit.id, humidity, tempC, !!raining, waterLow ?? null, waterFull ?? null, waterOverflow ?? null]
     );
     io.to(`unit:${req.unit.id}`).emit('telemetry', rows[0]);
     res.status(201).json(rows[0]);

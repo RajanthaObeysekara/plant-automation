@@ -6,6 +6,10 @@ multi-room greenhouse fleet will use later. See
 [plant-automation-architecture.html](plant-automation-architecture.html)
 for the full design writeup.
 
+**New to this repo, or picking it up on a different machine?** Start with
+[PROJECT.md](PROJECT.md) — full setup, architecture, hardware, pin
+reference, firmware behavior, and known gaps in one place.
+
 ## Parts of this repo
 
 | Path | What it is |

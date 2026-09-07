@@ -1,0 +1,8 @@
+# Binary files — never apply line-ending conversion, regardless of core.autocrlf
+# on whatever machine clones this repo.
+*.pdf binary
+*.xlsx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary

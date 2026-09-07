@@ -83,17 +83,22 @@ bool CloudClient::fetchConfig(DeviceConfig &out) {
   out.fungicideDoseMl = doc["fungicide"]["doseMl"] | out.fungicideDoseMl;
   out.fungicideAutomated = doc["fungicide"]["automated"] | out.fungicideAutomated;
   out.autofillEnabled = doc["autofillEnabled"] | out.autofillEnabled;
+  out.dechlorinateHours = doc["dechlorinateHours"] | out.dechlorinateHours;
+  out.pumpFlowLpm = doc["pumpFlowLpm"] | out.pumpFlowLpm;
   out.paused = doc["paused"] | out.paused;
   out.skipFeedOnce = doc["skipFeedOnce"] | out.skipFeedOnce;
   out.valid = true;
   return true;
 }
 
-bool CloudClient::postTelemetry(float humidity, float tempC, bool raining) {
+bool CloudClient::postTelemetry(float humidity, float tempC, bool raining, const WaterLevel &level) {
   JsonDocument doc;
   doc["humidity"] = humidity;
   doc["tempC"] = tempC;
   doc["raining"] = raining;
+  doc["waterLow"] = level.lowDetected;
+  doc["waterFull"] = level.fullDetected;
+  doc["waterOverflow"] = level.overflowDetected;
   String body;
   serializeJson(doc, body);
 
@@ -162,6 +167,18 @@ bool CloudClient::postAutofillEvent(int durationSeconds, bool completedNormally)
   doc["type"] = "autofill";
   doc["durationSeconds"] = durationSeconds;
   doc["meta"]["completedNormally"] = completedNormally;
+  String body;
+  serializeJson(doc, body);
+
+  String response;
+  int status;
+  return request("POST", "/api/device/events", body, response, status);
+}
+
+bool CloudClient::postOverflowEvent() {
+  JsonDocument doc;
+  doc["type"] = "overflow";
+  doc["meta"]["note"] = "limit switch tripped — inlet forced closed regardless of software state";
   String body;
   serializeJson(doc, body);
 

@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { api, setToken, clearToken, getToken } from './api';
 import Sparkline from './Sparkline';
 import Tip from './Tooltip';
+import WaterTank from './WaterTank';
 import { nextMistWindow, feedForecast, fungicideForecast } from './forecast';
 
 export default function App() {
@@ -83,6 +84,8 @@ const ACTIVITY_LABEL = {
   feeding: 'Feeding now',
   fungicide: 'Dosing fungicide',
   filling: 'Filling tank',
+  dechlorinating: 'Dechlorinating',
+  overflow: 'Overflow — check tank',
   idle: 'Idle',
 };
 const MIST_CONFIRM_SECONDS = 6;
@@ -126,7 +129,11 @@ function Shell({ onLogout }) {
   useEffect(() => {
     function onTelemetry(row) {
       setUnits((prev) => prev.map((u) => (u.id === row.unit_id
-        ? { ...u, humidity: row.humidity, temp_c: row.temp_c, raining: row.raining, last_reading_at: row.recorded_at, last_seen_at: row.recorded_at }
+        ? {
+            ...u, humidity: row.humidity, temp_c: row.temp_c, raining: row.raining,
+            water_low: row.water_low, water_full: row.water_full, water_overflow: row.water_overflow,
+            last_reading_at: row.recorded_at, last_seen_at: row.recorded_at,
+          }
         : u)));
     }
     function onStatus(row) {
@@ -698,6 +705,9 @@ function UnitDetail({ unit, socket, onChanged }) {
         </Stat>
         <Stat label="Rain" value={unit.raining ? 'Raining — locked out' : 'Clear'} tip="While raining, misting is locked out even if thresholds are met" />
         <Stat label="Water used (recent)" value={`${(totalWaterMl / 1000).toFixed(2)} L`} tip="Sum of mist + feed volume across the events currently loaded, estimated from pump flow rate × run time" />
+        <Stat label="Water Tank" value="" tip="Live low/full sensor state and dechlorination hold — real sensor data, not a simulated fill percentage">
+          <WaterTank waterLow={unit.water_low} waterFull={unit.water_full} activity={unit.activity} />
+        </Stat>
       </section>
 
       <section className="grid-2">
@@ -725,6 +735,10 @@ function UnitDetail({ unit, socket, onChanged }) {
                   fungicide_product: t.fungicide_product,
                   fungicide_dose_ml: t.fungicide_dose_ml,
                   fungicide_automated: t.fungicide_automated,
+                  feed_mix_ratio_ml_per_l: t.feed_mix_ratio_ml_per_l,
+                  feed_batch_water_l: t.feed_batch_water_l,
+                  fungicide_mix_ratio_ml_per_l: t.fungicide_mix_ratio_ml_per_l,
+                  fungicide_batch_water_l: t.fungicide_batch_water_l,
                 }));
               }} defaultValue={schedule.template_id || ''}>
                 <option value="">Custom</option>
@@ -776,11 +790,6 @@ function UnitDetail({ unit, socket, onChanged }) {
                   <input type="number" value={schedule.fungicide_interval_days}
                     onChange={(e) => setSchedule((s) => ({ ...s, fungicide_interval_days: Number(e.target.value) }))} />
                 </div>
-                <div>
-                  <Tip text="Volume dosed on a feed day"><label>Feed dose (mL)</label></Tip>
-                  <input type="number" value={schedule.dose_ml}
-                    onChange={(e) => setSchedule((s) => ({ ...s, dose_ml: Number(e.target.value) }))} />
-                </div>
               </div>
 
               <div className="field-divider">Products in use</div>
@@ -795,16 +804,50 @@ function UnitDetail({ unit, socket, onChanged }) {
 
               <div className="row gap">
                 <div>
+                  <Tip text="Concentrate mixed into the feed batch, per liter of water"><label>Fertilizer mix ratio (mL / L)</label></Tip>
+                  <input type="number" step="0.1" value={schedule.feed_mix_ratio_ml_per_l ?? 5}
+                    onChange={(e) => setSchedule((s) => {
+                      const ratio = Number(e.target.value);
+                      return { ...s, feed_mix_ratio_ml_per_l: ratio, dose_ml: Math.round(ratio * (s.feed_batch_water_l ?? 50)) };
+                    })} />
+                </div>
+                <div>
+                  <Tip text="Water volume the feed batch is mixed into"><label>Feed batch water (L)</label></Tip>
+                  <input type="number" step="1" value={schedule.feed_batch_water_l ?? 50}
+                    onChange={(e) => setSchedule((s) => {
+                      const vol = Number(e.target.value);
+                      return { ...s, feed_batch_water_l: vol, dose_ml: Math.round((s.feed_mix_ratio_ml_per_l ?? 5) * vol) };
+                    })} />
+                </div>
+              </div>
+              <p className="muted small-note">= {schedule.dose_ml} mL fertilizer concentrate dosed on a feed day</p>
+
+              <div className="row gap">
+                <div>
                   <label>Fungicide product</label>
                   <input value={schedule.fungicide_product || ''}
                     onChange={(e) => setSchedule((s) => ({ ...s, fungicide_product: e.target.value }))} />
                 </div>
+              </div>
+              <div className="row gap">
                 <div>
-                  <Tip text="Volume dosed if automated spraying is turned on"><label>Fungicide dose (mL)</label></Tip>
-                  <input type="number" value={schedule.fungicide_dose_ml || 0}
-                    onChange={(e) => setSchedule((s) => ({ ...s, fungicide_dose_ml: Number(e.target.value) }))} />
+                  <Tip text="Concentrate mixed into the fungicide batch, per liter of water"><label>Fungicide mix ratio (mL / L)</label></Tip>
+                  <input type="number" step="0.1" value={schedule.fungicide_mix_ratio_ml_per_l ?? 5}
+                    onChange={(e) => setSchedule((s) => {
+                      const ratio = Number(e.target.value);
+                      return { ...s, fungicide_mix_ratio_ml_per_l: ratio, fungicide_dose_ml: Math.round(ratio * (s.fungicide_batch_water_l ?? 50)) };
+                    })} />
+                </div>
+                <div>
+                  <Tip text="Water volume the fungicide batch is mixed into"><label>Fungicide batch water (L)</label></Tip>
+                  <input type="number" step="1" value={schedule.fungicide_batch_water_l ?? 50}
+                    onChange={(e) => setSchedule((s) => {
+                      const vol = Number(e.target.value);
+                      return { ...s, fungicide_batch_water_l: vol, fungicide_dose_ml: Math.round((s.fungicide_mix_ratio_ml_per_l ?? 5) * vol) };
+                    })} />
                 </div>
               </div>
+              <p className="muted small-note">= {schedule.fungicide_dose_ml || 0} mL fungicide concentrate dosed, if automated below</p>
 
               <label className="switch-row">
                 <input type="checkbox" checked={!!schedule.fungicide_automated}
@@ -817,11 +860,26 @@ function UnitDetail({ unit, socket, onChanged }) {
                 </div>
               )}
 
+              <div className="field-divider">Water tank</div>
+
               <label className="switch-row">
                 <input type="checkbox" checked={!!schedule.autofill_enabled}
                   onChange={(e) => setSchedule((s) => ({ ...s, autofill_enabled: e.target.checked }))} />
                 <Tip text="Requires a low + full water level sensor pair and an inlet valve on the main tank"><span>Auto-fill the main water tank</span></Tip>
               </label>
+
+              <div className="row gap">
+                <div>
+                  <Tip text="Mains water is chlorinated — the tank stands open and misting is held back this long after every fill, so chlorine can off-gas before it touches the orchids"><label>Dechlorination hold (days)</label></Tip>
+                  <input type="number" step="0.5" min="0" value={(schedule.dechlorinate_hours ?? 24) / 24}
+                    onChange={(e) => setSchedule((s) => ({ ...s, dechlorinate_hours: Math.round(Number(e.target.value) * 24) }))} />
+                </div>
+                <div>
+                  <Tip text="Actual flow rate of the misting pump — used to estimate water volume used per mist run"><label>Pump flow rate (L/min)</label></Tip>
+                  <input type="number" step="0.1" min="0" value={schedule.pump_flow_lpm ?? 4.5}
+                    onChange={(e) => setSchedule((s) => ({ ...s, pump_flow_lpm: Number(e.target.value) }))} />
+                </div>
+              </div>
 
               <button type="submit">{savedFlash ? 'Saved ✓' : 'Save schedule'}</button>
             </form>

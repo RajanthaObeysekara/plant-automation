@@ -112,12 +112,12 @@
 <div class="sheet">
 
   <div class="head">
-    <div class="eyebrow">Build Reference · Rev 0.2</div>
+    <div class="eyebrow">Build Reference · Rev 0.3</div>
     <h1 class="title">Full Wiring &amp; Connection Diagram</h1>
     <p class="dek">Every wire on the test bench — mains power down to the tanks — using the actual GPIO pins already in <span class="mono">firmware/esp32-unit/src/Config.h</span>, not placeholder channel numbers.</p>
     <div class="meta-row">
-      <span><b>Date</b> 2026-08-31</span>
-      <span><b>Scope</b> Phase 1 test bench — 7-channel relay, 3 fertilizer/fungicide products, auto-fill</span>
+      <span><b>Date</b> 2026-09-06</span>
+      <span><b>Scope</b> Phase 1 test bench — 7-channel relay, 3 fertilizer/fungicide products, auto-fill, dechlorination hold</span>
       <span><b>Matches</b> firmware Config.h pin map</span>
     </div>
   </div>
@@ -270,10 +270,12 @@
             <line class="edge-fert" x1="865" y1="430" x2="865" y2="450"/>
 
             <!-- Tanks -->
-            <rect class="box" x="40" y="430" width="220" height="90" rx="3"/>
-            <text class="lbl" x="150" y="465" text-anchor="middle" style="font-weight:600">Water Tank</text>
-            <text class="lbl-sub" x="150" y="480" text-anchor="middle">main reservoir</text>
-            <text class="lbl-sub" x="150" y="493" text-anchor="middle">low + full sensors clamped on wall</text>
+            <rect class="box" x="40" y="425" width="220" height="100" rx="3"/>
+            <text class="lbl" x="150" y="453" text-anchor="middle" style="font-weight:600">Water Tank — 50L barrel</text>
+            <text class="lbl-sub" x="150" y="467" text-anchor="middle">open top — chlorinated mains</text>
+            <text class="lbl-sub" x="150" y="480" text-anchor="middle">low + full sensors clamped on wall</text>
+            <text class="lbl-sub" x="150" y="493" text-anchor="middle">mesh lid only — not sealed</text>
+            <text class="lbl-sub" x="150" y="512" text-anchor="middle" style="font-weight:600">misting blocked 24h after fill</text>
             <line class="edge-accent" x1="260" y1="465" x2="380" y2="405" marker-end="url(#wa)"/>
 
             <rect class="box-gap" x="970" y="430" width="150" height="90" rx="3"/>
@@ -333,7 +335,7 @@
             <text class="lbl" x="655" y="886" text-anchor="middle">Dedicated Coarse Nozzle</text>
             <text class="lbl-sub" x="655" y="900" text-anchor="middle">its own outlet — never the fine fogging manifold</text>
           </svg>
-          <figcaption>Grey = GPIO control signal. Purple = power (mains → 12V → 5V, and the relay's separate switched 12V). Blue = plain water. Amber = fertilizer feed. Dashed = not yet ordered (feed line, fungicide line, auto-fill inlet, full-level sensor). The fungicide line deliberately never joins the shared fogging manifold — it sprays through its own coarse, dedicated nozzle instead, so wettable-powder residue can't clog the fine 30-µm nozzles.</figcaption>
+          <figcaption>Grey = GPIO control signal. Purple = power (mains → 12V → 5V, and the relay's separate switched 12V). Blue = plain water. Amber = fertilizer feed. Dashed = not yet ordered (feed line, fungicide line, auto-fill inlet, full-level sensor). The fungicide line deliberately never joins the shared fogging manifold — it sprays through its own coarse, dedicated nozzle instead, so wettable-powder residue can't clog the fine 30-µm nozzles. <b>Not pictured</b> to keep this drawing legible: a mechanical overflow limit switch on GPIO36, mounted on the tank above the full sensor as a hard backstop — see the pin table and tank plumbing table below for exactly how it wires in.</figcaption>
         </figure>
       </section>
 
@@ -373,6 +375,7 @@
               <tr><td>Rain sensor digital out</td><td class="mono">GPIO16</td><td>Verify polarity with a wet-finger test — see firmware README</td></tr>
               <tr><td>Water level — low, signal</td><td class="mono">GPIO34</td><td>Input-only pin — correct choice, this is a read-only signal. Raw "liquid present" reading; firmware inverts it to decide "needs a fill"</td></tr>
               <tr><td>Water level — full, signal</td><td class="mono">GPIO35</td><td>Input-only pin. Not yet ordered — needed for auto-fill</td></tr>
+              <tr><td>Water level — overflow limit switch</td><td class="mono">GPIO36</td><td>Input-only pin. Mechanical float switch, mounted above the full sensor. GPIO34-39 have <b>no internal pull resistors</b> — wire an external one (or a switch module with one built in) or this reading floats. Always active, forces the inlet shut regardless of <span class="mono">autofill_enabled</span></td></tr>
               <tr><td>Relay IN1 (water pump)</td><td class="mono">GPIO25</td><td></td></tr>
               <tr><td>Relay IN2 (water valve)</td><td class="mono">GPIO26</td><td></td></tr>
               <tr><td>Relay IN3 (feed pump)</td><td class="mono">GPIO27</td><td>Reserved — feed pump not yet ordered</td></tr>
@@ -400,6 +403,8 @@
               <tr><td>Feed Tank → Feed Pump</td><td>Same as the water side, once the feed pump is ordered</td></tr>
               <tr><td>Feed Pump → Feed Valve → check valve → Manifold</td><td>The check valve is the one non-negotiable part here — without it, fertilizer can siphon back into the shared manifold between runs</td></tr>
               <tr><td>Water level sensors (low + full)</td><td>Both clamp to the <i>outside</i> of the Water Tank wall at different heights — non-contact, nothing touches the water</td></tr>
+              <tr><td>Water Tank cover</td><td>Loose mesh lid only, never sealed — chlorine needs to off-gas into open air. Keeps debris and mosquitoes out without trapping chlorine in</td></tr>
+              <tr><td>Overflow limit switch</td><td>Mounted on the tank wall above the full sensor — a last-resort mechanical cutoff if the non-contact full sensor sticks or fails. Trips regardless of whether auto-fill is even enabled</td></tr>
               <tr><td>Manifold → Nozzles</td><td>Inline filter right before the nozzles — the last line of defense against clogging</td></tr>
               <tr><td>Fungicide Tank → Fungicide Pump → Fungicide Valve → dedicated coarse nozzle</td><td>Deliberately its own plumbing run, start to finish — this line never joins the water/feed manifold at any point</td></tr>
               <tr><td>Mains/Rainwater → Inlet Valve → Water Tank</td><td>Opens when the low sensor clears (tank needs water), closes on the full sensor or the firmware's timeout safety cutoff — whichever comes first</td></tr>
@@ -420,7 +425,9 @@
             <li><b>Fuse goes right after the SMPS, before anything else.</b><span class="why">It protects the whole 12V bus, not just one device — put it anywhere else and part of the circuit is unprotected.</span></li>
             <li><b>Power up logic before actuators.</b><span class="why">Get the ESP32 booting and the OLED showing readings first, with the pump/valve wires disconnected. Only connect the 12V actuator wiring once you've confirmed the relay clicks on command — much easier to debug a GPIO issue without a pump also running.</span></li>
             <li><b>Physically double-check the fungicide line never tees into the water/feed manifold.</b><span class="why">This is a plumbing mistake, not a wiring one — the firmware has no way to detect it. If it's plumbed wrong, the first automated dose will run wettable-powder residue through your 30-µm nozzles.</span></li>
-            <li><b>Test the auto-fill timeout before trusting it unattended.</b><span class="why">Temporarily cover the full sensor so it never triggers, and confirm the inlet valve actually closes on its own after <span class="mono">AUTOFILL_MAX_SECONDS</span> (10 minutes by default) — that's the only thing standing between a sensor failure and an overflowing tank.</span></li>
+            <li><b>Test the auto-fill timeout before trusting it unattended.</b><span class="why">Temporarily cover the full sensor so it never triggers, and confirm the inlet valve actually closes on its own after <span class="mono">AUTOFILL_MAX_SECONDS</span> (3 minutes, resized for the 50L barrel) — that's the only thing standing between a sensor failure and an overflowing tank.</span></li>
+            <li><b>Don't seal the Water Tank lid.</b><span class="why">The mains supply is chlorinated, and the tank relies on standing open to air for the chlorine to off-gas before the firmware will mist with it (<span class="mono">DECHLORINATE_SECONDS</span>, 24h default). A sealed or airtight lid defeats this — use loose mesh instead.</span></li>
+            <li><b>The 24h dechlorination hold resets on every fill, not just the first one.</b><span class="why">Each auto-fill event adds fresh chlorinated water, so the firmware restarts the wait every time the inlet valve closes — misting can go quiet for a day after any top-up, not just the initial fill. Confirm the actual dwell your water authority's chlorine level needs and adjust <span class="mono">DECHLORINATE_SECONDS</span> if 24h is wrong for your supply.</span></li>
           </ul>
         </div>
       </section>

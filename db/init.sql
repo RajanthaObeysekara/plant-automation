@@ -21,7 +21,11 @@ CREATE TABLE templates (
   feed_product_late TEXT NOT NULL DEFAULT 'Nitro-tech Mugasole Treble 20 (20-20-20 + TE)',
   fungicide_product TEXT NOT NULL DEFAULT 'Oasis Captan 50% WP',
   fungicide_dose_ml INT NOT NULL DEFAULT 250,
-  fungicide_automated BOOLEAN NOT NULL DEFAULT false
+  fungicide_automated BOOLEAN NOT NULL DEFAULT false,
+  feed_mix_ratio_ml_per_l NUMERIC NOT NULL DEFAULT 5,
+  feed_batch_water_l NUMERIC NOT NULL DEFAULT 50,
+  fungicide_mix_ratio_ml_per_l NUMERIC NOT NULL DEFAULT 5,
+  fungicide_batch_water_l NUMERIC NOT NULL DEFAULT 50
 );
 
 CREATE TABLE farms (
@@ -70,6 +74,12 @@ CREATE TABLE unit_schedules (
   fungicide_dose_ml INT NOT NULL DEFAULT 250,
   fungicide_automated BOOLEAN NOT NULL DEFAULT false,
   autofill_enabled BOOLEAN NOT NULL DEFAULT false,
+  dechlorinate_hours INT NOT NULL DEFAULT 24,
+  pump_flow_lpm NUMERIC NOT NULL DEFAULT 4.5,
+  feed_mix_ratio_ml_per_l NUMERIC NOT NULL DEFAULT 5,
+  feed_batch_water_l NUMERIC NOT NULL DEFAULT 50,
+  fungicide_mix_ratio_ml_per_l NUMERIC NOT NULL DEFAULT 5,
+  fungicide_batch_water_l NUMERIC NOT NULL DEFAULT 50,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -94,6 +104,9 @@ CREATE TABLE telemetry (
   humidity NUMERIC,
   temp_c NUMERIC,
   raining BOOLEAN NOT NULL DEFAULT false,
+  water_low BOOLEAN,
+  water_full BOOLEAN,
+  water_overflow BOOLEAN,
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_telemetry_unit_time ON telemetry(unit_id, recorded_at DESC);

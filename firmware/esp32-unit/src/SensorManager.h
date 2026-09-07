@@ -13,8 +13,9 @@ struct Reading {
 // a low reading of false means the tank has dropped below that point
 // (needs a fill), not the reverse.
 struct WaterLevel {
-  bool lowDetected;  // liquid present at the low-mounted sensor
-  bool fullDetected; // liquid present at the high-mounted sensor
+  bool lowDetected;      // liquid present at the low-mounted sensor
+  bool fullDetected;     // liquid present at the high-mounted sensor
+  bool overflowDetected; // mechanical limit switch, mounted above "full" — last-resort cutoff
 };
 
 class SensorManager {

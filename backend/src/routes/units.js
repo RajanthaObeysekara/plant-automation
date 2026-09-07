@@ -13,6 +13,7 @@ const LIST_SELECT = `
     s.paused, s.feed_start_date, s.cycle_weeks,
     s.fungicide_interval_days, s.fungicide_last_sprayed_date,
     t.humidity, t.temp_c, t.raining, t.recorded_at AS last_reading_at,
+    t.water_low, t.water_full, t.water_overflow,
     COALESCE(st.activity, 'idle') AS activity, st.started_at AS activity_started_at
   FROM units u
   LEFT JOIN rooms r ON r.id = u.room_id
@@ -20,7 +21,7 @@ const LIST_SELECT = `
   LEFT JOIN unit_schedules s ON s.unit_id = u.id
   LEFT JOIN unit_status st ON st.unit_id = u.id
   LEFT JOIN LATERAL (
-    SELECT humidity, temp_c, raining, recorded_at
+    SELECT humidity, temp_c, raining, water_low, water_full, water_overflow, recorded_at
     FROM telemetry
     WHERE unit_id = u.id
     ORDER BY recorded_at DESC
@@ -120,6 +121,12 @@ router.post('/:id/schedule', requireUser, async (req, res) => {
       fungicide_dose_ml = $15,
       fungicide_automated = $16,
       autofill_enabled = $17,
+      dechlorinate_hours = $18,
+      pump_flow_lpm = $19,
+      feed_mix_ratio_ml_per_l = $20,
+      feed_batch_water_l = $21,
+      fungicide_mix_ratio_ml_per_l = $22,
+      fungicide_batch_water_l = $23,
       updated_at = now()
      WHERE unit_id = $1
      RETURNING *`,
@@ -141,6 +148,12 @@ router.post('/:id/schedule', requireUser, async (req, res) => {
       base.fungicideDoseMl ?? base.fungicide_dose_ml,
       base.fungicideAutomated ?? base.fungicide_automated ?? false,
       base.autofillEnabled ?? base.autofill_enabled ?? false,
+      base.dechlorinateHours ?? base.dechlorinate_hours ?? 24,
+      base.pumpFlowLpm ?? base.pump_flow_lpm ?? 4.5,
+      base.feedMixRatioMlPerL ?? base.feed_mix_ratio_ml_per_l ?? 5,
+      base.feedBatchWaterL ?? base.feed_batch_water_l ?? 50,
+      base.fungicideMixRatioMlPerL ?? base.fungicide_mix_ratio_ml_per_l ?? 5,
+      base.fungicideBatchWaterL ?? base.fungicide_batch_water_l ?? 50,
     ]
   );
   if (!rows[0]) return res.status(404).json({ error: 'no schedule for this unit' });
@@ -151,7 +164,7 @@ router.get('/:id/history', requireUser, async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 200, 1000);
   const [telemetry, events] = await Promise.all([
     pool.query(
-      'SELECT humidity, temp_c, raining, recorded_at FROM telemetry WHERE unit_id = $1 ORDER BY recorded_at DESC LIMIT $2',
+      'SELECT humidity, temp_c, raining, water_low, water_full, water_overflow, recorded_at FROM telemetry WHERE unit_id = $1 ORDER BY recorded_at DESC LIMIT $2',
       [req.params.id, limit]
     ),
     pool.query(

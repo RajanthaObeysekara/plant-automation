@@ -27,6 +27,12 @@ const DEFAULTS = {
   fungicide_product: 'Oasis Captan 50% WP',
   fungicide_dose_ml: 250,
   fungicide_automated: false,
+  feed_mix_ratio_ml_per_l: 5,
+  feed_batch_water_l: 50,
+  fungicide_mix_ratio_ml_per_l: 5,
+  fungicide_batch_water_l: 50,
+  dechlorinate_hours: 24,
+  pump_flow_lpm: 4.5,
 };
 
 const DEFAULT_MAINTENANCE_TASKS = [
@@ -54,8 +60,9 @@ async function ensureTemplates() {
       `INSERT INTO templates
         (name, humidity_below, temp_above, window_start, window_end, poll_seconds,
          cycle_weeks, pre_water_wait_minutes, dose_ml, fungicide_interval_days,
-         feed_product_early, feed_product_late, fungicide_product, fungicide_dose_ml, fungicide_automated)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+         feed_product_early, feed_product_late, fungicide_product, fungicide_dose_ml, fungicide_automated,
+         feed_mix_ratio_ml_per_l, feed_batch_water_l, fungicide_mix_ratio_ml_per_l, fungicide_batch_water_l)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        ON CONFLICT (name) DO NOTHING`,
       [
         name,
@@ -73,6 +80,10 @@ async function ensureTemplates() {
         DEFAULTS.fungicide_product,
         DEFAULTS.fungicide_dose_ml,
         DEFAULTS.fungicide_automated,
+        DEFAULTS.feed_mix_ratio_ml_per_l,
+        DEFAULTS.feed_batch_water_l,
+        DEFAULTS.fungicide_mix_ratio_ml_per_l,
+        DEFAULTS.fungicide_batch_water_l,
       ]
     );
   }
@@ -133,8 +144,10 @@ async function ensureDemoUnit() {
     `INSERT INTO unit_schedules
       (unit_id, template_id, humidity_below, temp_above, window_start, window_end,
        poll_seconds, cycle_weeks, pre_water_wait_minutes, dose_ml, fungicide_interval_days,
-       feed_product_early, feed_product_late, fungicide_product, fungicide_dose_ml, fungicide_automated)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+       feed_product_early, feed_product_late, fungicide_product, fungicide_dose_ml, fungicide_automated,
+       feed_mix_ratio_ml_per_l, feed_batch_water_l, fungicide_mix_ratio_ml_per_l, fungicide_batch_water_l,
+       dechlorinate_hours, pump_flow_lpm)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
     [
       unitId,
       t.id || null,
@@ -152,6 +165,12 @@ async function ensureDemoUnit() {
       t.fungicide_product,
       t.fungicide_dose_ml,
       t.fungicide_automated,
+      t.feed_mix_ratio_ml_per_l ?? DEFAULTS.feed_mix_ratio_ml_per_l,
+      t.feed_batch_water_l ?? DEFAULTS.feed_batch_water_l,
+      t.fungicide_mix_ratio_ml_per_l ?? DEFAULTS.fungicide_mix_ratio_ml_per_l,
+      t.fungicide_batch_water_l ?? DEFAULTS.fungicide_batch_water_l,
+      DEFAULTS.dechlorinate_hours,
+      DEFAULTS.pump_flow_lpm,
     ]
   );
   await ensureMaintenanceTasks(unitId);

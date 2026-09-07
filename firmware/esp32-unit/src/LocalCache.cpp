@@ -19,6 +19,8 @@ void save(const DeviceConfig &cfg) {
   prefs.putString("fungicideLast", cfg.fungicideLastSprayedDate);
   prefs.putBool("paused", cfg.paused);
   prefs.putBool("skipFeed", cfg.skipFeedOnce);
+  prefs.putInt("dechlorHrs", cfg.dechlorinateHours);
+  prefs.putFloat("pumpFlowLpm", cfg.pumpFlowLpm);
   prefs.putBool("valid", true);
   prefs.end();
 }
@@ -41,6 +43,8 @@ DeviceConfig load() {
     cfg.fungicideLastSprayedDate = prefs.getString("fungicideLast", cfg.fungicideLastSprayedDate);
     cfg.paused = prefs.getBool("paused", cfg.paused);
     cfg.skipFeedOnce = prefs.getBool("skipFeed", cfg.skipFeedOnce);
+    cfg.dechlorinateHours = prefs.getInt("dechlorHrs", cfg.dechlorinateHours);
+    cfg.pumpFlowLpm = prefs.getFloat("pumpFlowLpm", cfg.pumpFlowLpm);
   }
   prefs.end();
   return cfg;
@@ -72,6 +76,21 @@ String loadDeviceKey() {
   Preferences prefs;
   prefs.begin(NVS_NAMESPACE, true);
   String v = prefs.getString("deviceKey", "");
+  prefs.end();
+  return v;
+}
+
+void saveTankFilledAt(unsigned long epochSeconds) {
+  Preferences prefs;
+  prefs.begin(NVS_NAMESPACE, false);
+  prefs.putULong("tankFilledAt", epochSeconds);
+  prefs.end();
+}
+
+unsigned long loadTankFilledAt() {
+  Preferences prefs;
+  prefs.begin(NVS_NAMESPACE, true);
+  unsigned long v = prefs.getULong("tankFilledAt", 0);
   prefs.end();
   return v;
 }

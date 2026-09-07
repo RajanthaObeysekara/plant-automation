@@ -26,6 +26,50 @@ let lastFedOn = null;
 let lastFungicideReminderOn = null;
 const MIST_COOLDOWN_MS = 5 * 60 * 1000;
 
+// Simulated Water Tank — mirrors the real firmware's low/full/dechlorination
+// model (main.cpp) so the dashboard has real live/upcoming state to render,
+// not just fake decoration. Sped way up vs. the real 24h hold so it's
+// actually visible in a local demo session.
+let waterPct = 78;
+let tankFilledAt = Date.now() - 25 * 3600 * 1000; // start already past the hold
+let filling = false;
+const DEMO_DECHLORINATE_MS = Number(process.env.DEMO_DECHLORINATE_MS) || 90 * 1000;
+const DEMO_FILL_MS = Number(process.env.DEMO_FILL_MS) || 4000;
+
+async function tickWaterTank() {
+  if (!filling) {
+    waterPct = Math.max(0, waterPct - (0.3 + Math.random() * 0.4));
+  }
+  const low = waterPct <= 15;
+  const dechlorinating = Date.now() - tankFilledAt < DEMO_DECHLORINATE_MS;
+
+  if (low && !filling) {
+    filling = true;
+    console.log(`[${UNIT_LABEL}] tank below low mark — opening inlet (simulated)`);
+    await setStatus('filling');
+    await sleep(DEMO_FILL_MS);
+    waterPct = 100;
+    tankFilledAt = Date.now();
+    filling = false;
+    await api('/api/device/events', {
+      method: 'POST',
+      body: JSON.stringify({ type: 'autofill', durationSeconds: Math.round(DEMO_FILL_MS / 1000), meta: { completedNormally: true, simulated: true } }),
+    }).catch((err) => console.warn(`[${UNIT_LABEL}] autofill event push failed:`, err.message));
+    console.log(`[${UNIT_LABEL}] tank full — dechlorination clock reset (simulated ${DEMO_DECHLORINATE_MS / 1000}s hold)`);
+  } else if (dechlorinating) {
+    await setStatus('dechlorinating');
+  } else {
+    await setStatus('idle'); // harmless if a mist/feed cycle immediately overrides this right after
+  }
+
+  return {
+    waterLow: low,
+    waterFull: waterPct >= 98,
+    waterOverflow: false, // not simulated — the real hardware limit switch has no demo equivalent here
+    tankReady: !dechlorinating,
+  };
+}
+
 function loadCache() {
   try {
     return JSON.parse(fs.readFileSync(CACHE_PATH, 'utf8'));
@@ -141,11 +185,15 @@ async function checkFungicide(now) {
   });
 }
 
-async function handleCommands() {
+async function handleCommands(tankOk) {
   const commands = await api('/api/device/commands');
   for (const cmd of commands) {
     console.log(`[${UNIT_LABEL}] command received: ${cmd.type}`);
     if (cmd.type === 'mist_now') {
+      if (!tankOk) {
+        console.log(`[${UNIT_LABEL}] mist_now ignored — tank is low or still dechlorinating`);
+        continue;
+      }
       const now = new Date();
       await runMist(now, simulateReading(now), true);
     }
@@ -164,23 +212,28 @@ async function tick() {
   }
 
   const reading = simulateReading(now);
+  const tank = await tickWaterTank();
   try {
     await api('/api/device/telemetry', {
       method: 'POST',
-      body: JSON.stringify({ humidity: reading.humidity, tempC: reading.tempC, raining: reading.raining }),
+      body: JSON.stringify({
+        humidity: reading.humidity, tempC: reading.tempC, raining: reading.raining,
+        waterLow: tank.waterLow, waterFull: tank.waterFull, waterOverflow: tank.waterOverflow,
+      }),
     });
   } catch (err) {
     console.warn(`[${UNIT_LABEL}] telemetry push failed:`, err.message);
   }
 
+  const tankOk = !tank.waterLow && tank.tankReady;
   try {
-    await handleCommands();
+    await handleCommands(tankOk);
   } catch (err) {
     console.warn(`[${UNIT_LABEL}] command poll failed:`, err.message);
   }
 
   const cooledDown = now.getTime() - lastMistAt > MIST_COOLDOWN_MS;
-  if (cooledDown && shouldMist(now, reading, cachedConfig)) {
+  if (tankOk && cooledDown && shouldMist(now, reading, cachedConfig)) {
     try {
       await runMist(now, reading, false);
     } catch (err) {

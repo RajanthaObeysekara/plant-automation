@@ -24,6 +24,8 @@ struct DeviceConfig {
   bool fungicideAutomated = false; // opt-in — needs the dedicated 3rd line + coarse nozzle, never the fine fogging manifold
 
   bool autofillEnabled = false;
+  int dechlorinateHours = 24;  // mains is chlorinated — hold misting this long after every tank fill
+  float pumpFlowLpm = 4.5;     // actual misting pump flow rate, for volume-used estimates
 
   bool paused = false;
   bool skipFeedOnce = false;

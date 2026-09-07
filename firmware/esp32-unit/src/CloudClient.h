@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <vector>
 #include "DeviceConfig.h"
+#include "SensorManager.h"
 
 // Talks to the same REST contract the device-simulator uses
 // (backend/src/routes/device.js): plain HTTP(S) with a per-unit bearer
@@ -13,12 +14,13 @@ public:
   void begin(const String &backendUrl, const String &deviceKey);
 
   bool fetchConfig(DeviceConfig &out);
-  bool postTelemetry(float humidity, float tempC, bool raining);
+  bool postTelemetry(float humidity, float tempC, bool raining, const WaterLevel &level);
   bool postMistEvent(int durationSeconds, float volumeMl, bool forced, float humidity, float tempC);
   bool postFeedEvent(int durationSeconds, float volumeMl);
   bool postFungicideReminder(const String &lastSprayedDate);
   bool postFungicideSprayedEvent(int durationSeconds, float volumeMl, bool automated);
   bool postAutofillEvent(int durationSeconds, bool completedNormally);
+  bool postOverflowEvent();
   bool postStatus(const String &activity);
   std::vector<String> pollCommands();
 
