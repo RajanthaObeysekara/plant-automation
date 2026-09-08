@@ -55,6 +55,17 @@ function isOnline(entity) {
   return Date.now() - new Date(entity.last_seen_at).getTime() < 90 * 1000;
 }
 
+function timeAgo(iso) {
+  if (!iso) return null;
+  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
 // What a room is actually doing right now, folding in the farm's shared
 // fertigation rig when it happens to be servicing this room's feed cycle.
 function roomActivity(room, farm) {
@@ -506,9 +517,13 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
   const mistStartingRef = useRef(false);
   const [maintenance, setMaintenance] = useState([]);
   const [completingTaskId, setCompletingTaskId] = useState(null);
+  const [plan, setPlan] = useState(null);
 
   const loadMaintenance = useCallback(() => {
     api.maintenance(room.id).then(setMaintenance).catch(console.error);
+  }, [room.id]);
+  const loadPlan = useCallback(() => {
+    api.plan(room.id).then(setPlan).catch(console.error);
   }, [room.id]);
 
   useEffect(() => {
@@ -516,7 +531,8 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
     api.schedule(room.id).then(setSchedule).catch(console.error);
     api.templates().then(setTemplates).catch(console.error);
     loadMaintenance();
-  }, [room.id, loadMaintenance]);
+    loadPlan();
+  }, [room.id, loadMaintenance, loadPlan]);
 
   async function completeTask(taskId) {
     setCompletingTaskId(taskId);
@@ -590,6 +606,7 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
     setBusyCommand(type);
     try {
       await api.command(room.id, type);
+      if (type === 'pause' || type === 'resume' || type === 'skip_feed') loadPlan();
       onChanged();
     } catch (err) {
       alert(err.message);
@@ -603,6 +620,7 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
     try {
       const updated = await api.updateSchedule(room.id, schedule);
       setSchedule(updated);
+      loadPlan(); // schedule_version just bumped server-side — the 7-day plan changed too
       setSavedFlash(true);
       setTimeout(() => setSavedFlash(false), 1500);
       onChanged();
@@ -677,6 +695,15 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
       )}
       {!online && (
         <div className="alert crit">📡 This room hasn't reported in — it's running on its last-synced schedule until it reconnects.</div>
+      )}
+      {schedule && (
+        <div className={`alert small-alert ${schedule.schedule_version === room.synced_schedule_version ? '' : 'warn'}`}>
+          {schedule.schedule_version === room.synced_schedule_version
+            ? <>✓ Controller synced to v{room.synced_schedule_version} (7-day plan up to date)</>
+            : <>⏳ Sync pending — controller last confirmed v{room.synced_schedule_version ?? '—'}, server is on v{schedule.schedule_version}. Applies on its next check-in.</>}
+          {room.last_config_sync_at && <span className="muted"> · last check-in {timeAgo(room.last_config_sync_at)}</span>}
+          {room.last_boot_at && <span className="muted"> · last reboot {timeAgo(room.last_boot_at)}</span>}
+        </div>
       )}
       {farm && (farm.water_low || farm.tank_activity === 'dechlorinating') && (
         <div className="alert warn small-alert">
@@ -888,6 +915,31 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
                 </li>
               )}
             </ul>
+          </div>
+
+          <div className="card">
+            <h3>7-Day Plan</h3>
+            <p className="muted small">Server-computed and pushed to the room controller on every sync — it's what the controller runs from while offline, not a live guess.</p>
+            {plan ? (
+              <ul className="plan-list">
+                {plan.days.map((d, i) => {
+                  const date = new Date(d.date + 'T00:00:00');
+                  const isToday = i === 0;
+                  return (
+                    <li key={d.date} className={isToday ? 'today' : ''}>
+                      <span className="plan-date">
+                        {isToday ? 'Today' : date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </span>
+                      <span className="plan-markers">
+                        {d.isFeedDay && <Tip text={`${d.doseMl} mL feed dose`}><span className="chip ok">Feed</span></Tip>}
+                        {d.fungicideDue && <Tip text="Fungicide due — always sprayed by hand"><span className="chip gap">Fungicide</span></Tip>}
+                        {!d.isFeedDay && !d.fungicideDue && <span className="muted small">—</span>}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : <p className="muted">Loading…</p>}
           </div>
 
           <div className="card">

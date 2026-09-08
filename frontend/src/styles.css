@@ -312,6 +312,12 @@ input[type="checkbox"] { width: auto; }
 .upcoming-list li:last-child { border-bottom: none; padding-bottom: 0; }
 .upcoming-label { color: var(--muted); }
 
+.plan-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.plan-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 7px; font-size: 13px; }
+.plan-list li.today { background: var(--surface-2); font-weight: 600; }
+.plan-date { color: var(--ink); }
+.plan-markers { display: flex; gap: 6px; align-items: center; }
+
 .maintenance-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .maintenance-list li {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;

@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { requireDeviceKind } = require('../deviceAuth');
+const { buildSevenDayPlan } = require('../planner');
 
 // Status strings actually posted by a room controller (env sensor + shared
 // misting for every bench in it) vs. a farm controller (shared water tank +
@@ -22,6 +23,17 @@ function buildRoomDeviceRouter(io) {
     const s = scheduleRes.rows[0];
     if (!s) return res.status(404).json({ error: 'no schedule configured for this room yet' });
     const farm = farmRes.rows[0];
+
+    // `?boot=1` — the device sends this only on its very first config fetch
+    // after power-on, so a field reboot is visible on the dashboard instead
+    // of looking identical to a routine poll. last_config_sync_at is
+    // touched on every fetch, booted or not, so "last check-in" is always
+    // accurate even between reboots.
+    const booted = req.query.boot === '1';
+    await pool.query(
+      `UPDATE rooms SET last_config_sync_at = now()${booted ? ', last_boot_at = now()' : ''} WHERE id = $1`,
+      [room.id]
+    );
 
     res.json({
       roomId: room.id,
@@ -60,6 +72,12 @@ function buildRoomDeviceRouter(io) {
           && farm.tank_activity !== 'dechlorinating' && farm.tank_activity !== 'filling',
         low: farm ? farm.water_low : null,
       },
+      // Server-initiated scheduling: the room caches this and can decide
+      // "is today a feed day / is fungicide due" purely from this array,
+      // fully offline, for up to a week without contacting the server
+      // again. Regenerated fresh (relative to today) on every fetch.
+      scheduleVersion: s.schedule_version,
+      plan: buildSevenDayPlan(s),
       syncedAt: new Date().toISOString(),
     });
   });
@@ -78,18 +96,28 @@ function buildRoomDeviceRouter(io) {
   });
 
   router.post('/telemetry', async (req, res) => {
-    const { humidity, tempC, raining } = req.body || {};
-    const { rows } = await pool.query(
-      `INSERT INTO room_telemetry (room_id, humidity, temp_c, raining) VALUES ($1,$2,$3,$4) RETURNING *`,
-      [req.device.id, humidity, tempC, !!raining]
-    );
-    io.to(`room:${req.device.id}`).emit('room_telemetry', rows[0]);
-    res.status(201).json(rows[0]);
+    const { humidity, tempC, raining, scheduleVersion } = req.body || {};
+    const inserts = [
+      pool.query(
+        `INSERT INTO room_telemetry (room_id, humidity, temp_c, raining) VALUES ($1,$2,$3,$4) RETURNING *`,
+        [req.device.id, humidity, tempC, !!raining]
+      ),
+    ];
+    // The device echoes back whichever schedule_version it fetched last —
+    // this is what makes "synced" a checkable fact instead of an assumption.
+    // Comes in on telemetry (posted every cycle already) rather than a
+    // dedicated endpoint, so it costs nothing extra on the wire.
+    if (scheduleVersion != null) {
+      inserts.push(pool.query('UPDATE rooms SET synced_schedule_version = $2 WHERE id = $1', [req.device.id, scheduleVersion]));
+    }
+    const [reading] = await Promise.all(inserts);
+    io.to(`room:${req.device.id}`).emit('room_telemetry', reading.rows[0]);
+    res.status(201).json(reading.rows[0]);
   });
 
   router.post('/events', async (req, res) => {
     const { type, durationSeconds, volumeMl, meta } = req.body || {};
-    const allowed = ['mist', 'fungicide_reminder', 'fungicide_sprayed', 'mist_skipped'];
+    const allowed = ['mist', 'fungicide_reminder', 'fungicide_sprayed', 'mist_skipped', 'feed_reminder'];
     if (!allowed.includes(type)) return res.status(400).json({ error: `type must be one of ${allowed.join(', ')}` });
 
     const { rows } = await pool.query(

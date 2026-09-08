@@ -2,25 +2,26 @@
 #include <Arduino.h>
 #include <vector>
 #include "DeviceConfig.h"
-#include "SensorManager.h"
 
-// Talks to the same REST contract the device-simulator uses
-// (backend/src/routes/device.js): plain HTTP(S) with a per-unit bearer
-// device key, polled on an interval — no broker to run, resilient to
-// reconnects. Real-time push to the browser happens on the backend side
-// over WebSocket; the device itself never needs a persistent connection.
+// Talks to this room's slice of the backend's device API
+// (backend/src/routes/device.js, buildRoomDeviceRouter — mounted at
+// /api/device/room). Plain HTTP(S), polled on an interval, bearer
+// per-device key auth. No broker to run, resilient to reconnects — the
+// unit always keeps misting on its last-synced config (and cached 7-day
+// plan — see DeviceConfig.h) even if this link is down.
 class CloudClient {
 public:
   void begin(const String &backendUrl, const String &deviceKey);
 
-  bool fetchConfig(DeviceConfig &out);
-  bool postTelemetry(float humidity, float tempC, bool raining, const WaterLevel &level);
-  bool postMistEvent(int durationSeconds, float volumeMl, bool forced, float humidity, float tempC);
-  bool postFeedEvent(int durationSeconds, float volumeMl);
+  // `isBoot` marks this as the device's first fetch since power-on — sent
+  // as ?boot=1 so the backend can record a real reboot instead of it
+  // looking like a routine poll (see rooms.last_boot_at).
+  bool fetchConfig(DeviceConfig &out, bool isBoot);
+  bool postTelemetry(float humidity, float tempC, bool raining, int scheduleVersion);
+  bool postMistEvent(int durationSeconds, float volumeMl, float humidity, float tempC);
+  bool postMistSkipped(const String &reason);
   bool postFungicideReminder(const String &lastSprayedDate);
-  bool postFungicideSprayedEvent(int durationSeconds, float volumeMl, bool automated);
-  bool postAutofillEvent(int durationSeconds, bool completedNormally);
-  bool postOverflowEvent();
+  bool postFeedReminder(const String &date, int doseMl);
   bool postStatus(const String &activity);
   std::vector<String> pollCommands();
 

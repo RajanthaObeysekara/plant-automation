@@ -28,6 +28,9 @@ export const api = {
   room: (id) => request(`/rooms/${id}`),
   renameRoom: (id, name) => request(`/rooms/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
   schedule: (id) => request(`/rooms/${id}/schedule`),
+  // Server-computed 7-day forward plan — the same array the room's own
+  // controller fetches and caches to run on offline (see PROJECT.md).
+  plan: (id) => request(`/rooms/${id}/plan`),
   updateSchedule: (id, data) => request(`/rooms/${id}/schedule`, { method: 'POST', body: JSON.stringify(data) }),
   history: (id) => request(`/rooms/${id}/history`),
   command: (id, type) => request(`/rooms/${id}/command`, { method: 'POST', body: JSON.stringify({ type }) }),

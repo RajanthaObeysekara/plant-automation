@@ -8,19 +8,10 @@ struct Reading {
   bool raining = false;
 };
 
-// Raw physical state only — "does this sensor detect liquid at its mounted
-// height?" The fill/no-fill *decision* belongs in the rule layer, not here:
-// a low reading of false means the tank has dropped below that point
-// (needs a fill), not the reverse.
-struct WaterLevel {
-  bool lowDetected;      // liquid present at the low-mounted sensor
-  bool fullDetected;     // liquid present at the high-mounted sensor
-  bool overflowDetected; // mechanical limit switch, mounted above "full" — last-resort cutoff
-};
-
+// Water level sensing moved to the (not yet built) farm controller — this
+// room has no tank of its own to sense. See Config.h.
 class SensorManager {
 public:
   void begin();
   Reading read();
-  WaterLevel readWaterLevel();
 };

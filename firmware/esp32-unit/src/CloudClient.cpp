@@ -21,8 +21,8 @@ bool CloudClient::request(const char *method, const String &path, const String &
   bool ok;
 
   if (url.startsWith("https://")) {
-    // Local-dev simplification: real deployments should pin Railway's CA
-    // instead of skipping verification.
+    // Local-dev simplification: real deployments should pin the host's
+    // real CA instead of skipping verification.
     secureClient.setInsecure();
     ok = http.begin(secureClient, url);
   } else {
@@ -59,10 +59,12 @@ bool CloudClient::request(const char *method, const String &path, const String &
   return true;
 }
 
-bool CloudClient::fetchConfig(DeviceConfig &out) {
+bool CloudClient::fetchConfig(DeviceConfig &out, bool isBoot) {
   String body, response;
   int status;
-  if (!request("GET", "/api/device/config", body, response, status)) return false;
+  String path = "/api/device/room/config";
+  if (isBoot) path += "?boot=1";
+  if (!request("GET", path, body, response, status)) return false;
 
   JsonDocument doc;
   if (deserializeJson(doc, response) != DeserializationError::Ok) {
@@ -74,45 +76,52 @@ bool CloudClient::fetchConfig(DeviceConfig &out) {
   out.tempAbove = doc["trigger"]["tempAbove"] | out.tempAbove;
   out.windowStart = doc["schedule"]["windowStart"] | out.windowStart;
   out.windowEnd = doc["schedule"]["windowEnd"] | out.windowEnd;
-  out.cycleWeeks = doc["feed"]["cycleWeeks"] | out.cycleWeeks;
-  out.feedStartDate = doc["feed"]["feedStartDate"] | out.feedStartDate;
-  out.preWaterWaitMinutes = doc["feed"]["preWaterWaitMinutes"] | out.preWaterWaitMinutes;
-  out.doseMl = doc["feed"]["doseMl"] | out.doseMl;
-  out.fungicideIntervalDays = doc["fungicide"]["intervalDays"] | out.fungicideIntervalDays;
-  out.fungicideLastSprayedDate = doc["fungicide"]["lastSprayedDate"] | out.fungicideLastSprayedDate;
   out.fungicideDoseMl = doc["fungicide"]["doseMl"] | out.fungicideDoseMl;
-  out.fungicideAutomated = doc["fungicide"]["automated"] | out.fungicideAutomated;
-  out.autofillEnabled = doc["autofillEnabled"] | out.autofillEnabled;
-  out.dechlorinateHours = doc["dechlorinateHours"] | out.dechlorinateHours;
-  out.pumpFlowLpm = doc["pumpFlowLpm"] | out.pumpFlowLpm;
+  out.fungicideLastSprayedDate = doc["fungicide"]["lastSprayedDate"] | out.fungicideLastSprayedDate;
+  out.lastFedDate = doc["feed"]["lastFedDate"] | out.lastFedDate;
   out.paused = doc["paused"] | out.paused;
   out.skipFeedOnce = doc["skipFeedOnce"] | out.skipFeedOnce;
+  out.pumpFlowLpm = doc["pumpFlowLpm"] | out.pumpFlowLpm;
+  out.tankReady = doc["tank"]["ready"] | false;
+  out.tankLow = doc["tank"]["low"] | out.tankLow;
+  out.scheduleVersion = doc["scheduleVersion"] | out.scheduleVersion;
+
+  out.planCount = 0;
+  JsonArray plan = doc["plan"].as<JsonArray>();
+  for (JsonVariant day : plan) {
+    if (out.planCount >= PLAN_DAYS) break;
+    PlanDay &pd = out.plan[out.planCount];
+    pd.date = day["date"] | "";
+    pd.isFeedDay = day["isFeedDay"] | false;
+    pd.doseMl = day["doseMl"] | 0;
+    pd.fungicideDue = day["fungicideDue"] | false;
+    pd.fungicideDoseMl = day["fungicideDoseMl"] | 0;
+    out.planCount++;
+  }
+
   out.valid = true;
   return true;
 }
 
-bool CloudClient::postTelemetry(float humidity, float tempC, bool raining, const WaterLevel &level) {
+bool CloudClient::postTelemetry(float humidity, float tempC, bool raining, int scheduleVersion) {
   JsonDocument doc;
   doc["humidity"] = humidity;
   doc["tempC"] = tempC;
   doc["raining"] = raining;
-  doc["waterLow"] = level.lowDetected;
-  doc["waterFull"] = level.fullDetected;
-  doc["waterOverflow"] = level.overflowDetected;
+  doc["scheduleVersion"] = scheduleVersion;
   String body;
   serializeJson(doc, body);
 
   String response;
   int status;
-  return request("POST", "/api/device/telemetry", body, response, status);
+  return request("POST", "/api/device/room/telemetry", body, response, status);
 }
 
-bool CloudClient::postMistEvent(int durationSeconds, float volumeMl, bool forced, float humidity, float tempC) {
+bool CloudClient::postMistEvent(int durationSeconds, float volumeMl, float humidity, float tempC) {
   JsonDocument doc;
   doc["type"] = "mist";
   doc["durationSeconds"] = durationSeconds;
   doc["volumeMl"] = volumeMl;
-  doc["meta"]["forced"] = forced;
   doc["meta"]["humidity"] = humidity;
   doc["meta"]["tempC"] = tempC;
   String body;
@@ -120,20 +129,19 @@ bool CloudClient::postMistEvent(int durationSeconds, float volumeMl, bool forced
 
   String response;
   int status;
-  return request("POST", "/api/device/events", body, response, status);
+  return request("POST", "/api/device/room/events", body, response, status);
 }
 
-bool CloudClient::postFeedEvent(int durationSeconds, float volumeMl) {
+bool CloudClient::postMistSkipped(const String &reason) {
   JsonDocument doc;
-  doc["type"] = "feed";
-  doc["durationSeconds"] = durationSeconds;
-  doc["volumeMl"] = volumeMl;
+  doc["type"] = "mist_skipped";
+  doc["meta"]["reason"] = reason;
   String body;
   serializeJson(doc, body);
 
   String response;
   int status;
-  return request("POST", "/api/device/events", body, response, status);
+  return request("POST", "/api/device/room/events", body, response, status);
 }
 
 bool CloudClient::postFungicideReminder(const String &lastSprayedDate) {
@@ -145,46 +153,21 @@ bool CloudClient::postFungicideReminder(const String &lastSprayedDate) {
 
   String response;
   int status;
-  return request("POST", "/api/device/events", body, response, status);
+  return request("POST", "/api/device/room/events", body, response, status);
 }
 
-bool CloudClient::postFungicideSprayedEvent(int durationSeconds, float volumeMl, bool automated) {
+bool CloudClient::postFeedReminder(const String &date, int doseMl) {
   JsonDocument doc;
-  doc["type"] = "fungicide_sprayed";
-  doc["durationSeconds"] = durationSeconds;
-  doc["volumeMl"] = volumeMl;
-  doc["meta"]["automated"] = automated;
+  doc["type"] = "feed_reminder";
+  doc["meta"]["date"] = date;
+  doc["meta"]["doseMl"] = doseMl;
+  doc["meta"]["note"] = "no farm dosing rig wired up yet — manual feed required";
   String body;
   serializeJson(doc, body);
 
   String response;
   int status;
-  return request("POST", "/api/device/events", body, response, status);
-}
-
-bool CloudClient::postAutofillEvent(int durationSeconds, bool completedNormally) {
-  JsonDocument doc;
-  doc["type"] = "autofill";
-  doc["durationSeconds"] = durationSeconds;
-  doc["meta"]["completedNormally"] = completedNormally;
-  String body;
-  serializeJson(doc, body);
-
-  String response;
-  int status;
-  return request("POST", "/api/device/events", body, response, status);
-}
-
-bool CloudClient::postOverflowEvent() {
-  JsonDocument doc;
-  doc["type"] = "overflow";
-  doc["meta"]["note"] = "limit switch tripped — inlet forced closed regardless of software state";
-  String body;
-  serializeJson(doc, body);
-
-  String response;
-  int status;
-  return request("POST", "/api/device/events", body, response, status);
+  return request("POST", "/api/device/room/events", body, response, status);
 }
 
 bool CloudClient::postStatus(const String &activity) {
@@ -195,14 +178,14 @@ bool CloudClient::postStatus(const String &activity) {
 
   String response;
   int status;
-  return request("POST", "/api/device/status", body, response, status);
+  return request("POST", "/api/device/room/status", body, response, status);
 }
 
 std::vector<String> CloudClient::pollCommands() {
   std::vector<String> types;
   String body, response;
   int status;
-  if (!request("GET", "/api/device/commands", body, response, status)) return types;
+  if (!request("GET", "/api/device/room/commands", body, response, status)) return types;
 
   JsonDocument doc;
   if (deserializeJson(doc, response) != DeserializationError::Ok) return types;

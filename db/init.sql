@@ -75,6 +75,13 @@ CREATE TABLE rooms (
   last_seen_at TIMESTAMPTZ,
   mist_activity TEXT NOT NULL DEFAULT 'idle', -- idle | misting
   mist_activity_started_at TIMESTAMPTZ,
+  -- Sync visibility: which schedule_version this room's own controller has
+  -- actually confirmed running (echoed back on every config fetch), when it
+  -- last successfully synced at all, and when it last reported a fresh boot
+  -- (so a power cycle in the field is visible on the dashboard, not silent).
+  synced_schedule_version INT,
+  last_config_sync_at TIMESTAMPTZ,
+  last_boot_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(farm_id, name)
 );
@@ -128,6 +135,12 @@ CREATE TABLE room_schedules (
   feed_batch_water_l NUMERIC NOT NULL DEFAULT 50,
   fungicide_mix_ratio_ml_per_l NUMERIC NOT NULL DEFAULT 5,
   fungicide_batch_water_l NUMERIC NOT NULL DEFAULT 50,
+  -- Bumped on every change here (schedule edit, pause/resume, skip_feed).
+  -- The device echoes back whichever version it's actually running on —
+  -- comparing the two is what "synced" means, made visible instead of
+  -- assumed. See planner.js for the 7-day plan this and the schedule
+  -- fields above get turned into for the device to cache and run offline.
+  schedule_version INT NOT NULL DEFAULT 1,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

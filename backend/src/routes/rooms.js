@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { requireUser } = require('../auth');
+const { buildSevenDayPlan } = require('../planner');
 
 function buildRoomsRouter(io) {
   const router = express.Router();
@@ -9,10 +10,11 @@ function buildRoomsRouter(io) {
     SELECT
       r.id, r.name, r.farm_id, r.last_seen_at, r.created_at,
       r.mist_activity AS activity, r.mist_activity_started_at AS activity_started_at,
+      r.synced_schedule_version, r.last_config_sync_at, r.last_boot_at,
       f.name AS farm_name, f.water_low, f.water_full, f.water_overflow,
       f.tank_activity, f.fert_activity, f.fert_activity_room_id,
       s.humidity_below, s.temp_above, s.window_start, s.window_end,
-      s.paused, s.feed_start_date, s.cycle_weeks,
+      s.paused, s.feed_start_date, s.cycle_weeks, s.schedule_version,
       s.fungicide_interval_days, s.fungicide_last_sprayed_date,
       t.humidity, t.temp_c, t.raining, t.recorded_at AS last_reading_at
     FROM rooms r
@@ -54,6 +56,16 @@ function buildRoomsRouter(io) {
     res.json(rows[0]);
   });
 
+  // Same 7-day plan the device itself fetches and caches (see
+  // GET /api/device/room/config) — exposed here too so the dashboard shows
+  // exactly what the room is (or will be) running against, not a separately
+  // computed guess.
+  router.get('/:id/plan', requireUser, async (req, res) => {
+    const { rows } = await pool.query('SELECT * FROM room_schedules WHERE room_id = $1', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'no schedule for this room' });
+    res.json({ scheduleVersion: rows[0].schedule_version, days: buildSevenDayPlan(rows[0]) });
+  });
+
   router.post('/:id/schedule', requireUser, async (req, res) => {
     const roomId = req.params.id;
     const body = req.body || {};
@@ -86,6 +98,7 @@ function buildRoomsRouter(io) {
         feed_batch_water_l = $18,
         fungicide_mix_ratio_ml_per_l = $19,
         fungicide_batch_water_l = $20,
+        schedule_version = schedule_version + 1,
         updated_at = now()
        WHERE room_id = $1
        RETURNING *`,
@@ -155,11 +168,22 @@ function buildRoomsRouter(io) {
       return res.status(400).json({ error: `type must be one of ${allowed.join(', ')}` });
     }
 
+    // Every one of these is an override the device needs to actually notice
+    // — bumping the version here (not just the raw field) is what makes it
+    // show up as "pending sync" on the dashboard until the device's next
+    // check-in confirms it applied, rather than silently hoping the next
+    // poll picks it up.
     if (type === 'pause' || type === 'resume') {
-      await pool.query('UPDATE room_schedules SET paused = $2 WHERE room_id = $1', [req.params.id, type === 'pause']);
+      await pool.query(
+        'UPDATE room_schedules SET paused = $2, schedule_version = schedule_version + 1 WHERE room_id = $1',
+        [req.params.id, type === 'pause']
+      );
     }
     if (type === 'skip_feed') {
-      await pool.query('UPDATE room_schedules SET skip_feed_once = true WHERE room_id = $1', [req.params.id]);
+      await pool.query(
+        'UPDATE room_schedules SET skip_feed_once = true, schedule_version = schedule_version + 1 WHERE room_id = $1',
+        [req.params.id]
+      );
     }
 
     const { rows } = await pool.query('INSERT INTO commands (room_id, type) VALUES ($1,$2) RETURNING *', [req.params.id, type]);

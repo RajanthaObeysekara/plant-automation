@@ -27,6 +27,13 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
       DEMO_DEVICE_KEY: ${DEMO_DEVICE_KEY:-dev-unit-1-key}
       PORT: "4000"
+      # Without this, Node's Date "local" methods (getDay/getHours/etc, used
+      # throughout planner.js) run in the container's default UTC — Sri
+      # Lanka is UTC+5:30, so "today"/"is it daytime" would silently be
+      # wrong for the last ~5.5h of every UTC day. This farm only ever
+      # operates in one timezone; hardcoding it here is correct, not a
+      # shortcut.
+      TZ: Asia/Colombo
     depends_on:
       db:
         condition: service_healthy
@@ -51,6 +58,9 @@ services:
     environment:
       BACKEND_URL: http://backend:4000
       DATABASE_URL: postgres://${POSTGRES_USER:-plantapp}:${POSTGRES_PASSWORD:-plantapp}@db:5432/${POSTGRES_DB:-plantapp}
+      # See the backend service's TZ comment — same bug, same fix, for
+      # rules.js's isDaytime/feedPhase/fungicideDue day-of-week math.
+      TZ: Asia/Colombo
     depends_on:
       db:
         condition: service_healthy

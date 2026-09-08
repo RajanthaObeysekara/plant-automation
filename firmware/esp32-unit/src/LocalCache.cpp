@@ -1,5 +1,6 @@
 #include "LocalCache.h"
 #include <Preferences.h>
+#include <ArduinoJson.h>
 #include "Config.h"
 
 namespace LocalCache {
@@ -11,16 +12,33 @@ void save(const DeviceConfig &cfg) {
   prefs.putFloat("tempAbove", cfg.tempAbove);
   prefs.putString("windowStart", cfg.windowStart);
   prefs.putString("windowEnd", cfg.windowEnd);
-  prefs.putInt("cycleWeeks", cfg.cycleWeeks);
-  prefs.putString("feedStart", cfg.feedStartDate);
-  prefs.putInt("preWaterMin", cfg.preWaterWaitMinutes);
-  prefs.putInt("doseMl", cfg.doseMl);
-  prefs.putInt("fungicideDays", cfg.fungicideIntervalDays);
+  prefs.putInt("fungicideDoseMl", cfg.fungicideDoseMl);
   prefs.putString("fungicideLast", cfg.fungicideLastSprayedDate);
+  prefs.putString("lastFedDate", cfg.lastFedDate);
   prefs.putBool("paused", cfg.paused);
   prefs.putBool("skipFeed", cfg.skipFeedOnce);
-  prefs.putInt("dechlorHrs", cfg.dechlorinateHours);
+  prefs.putBool("tankReady", cfg.tankReady);
+  prefs.putBool("tankLow", cfg.tankLow);
   prefs.putFloat("pumpFlowLpm", cfg.pumpFlowLpm);
+  prefs.putInt("scheduleVer", cfg.scheduleVersion);
+
+  // The 7-day plan is the one thing worth serializing as a single blob
+  // rather than a field per key — it's a small, fixed-shape array and this
+  // keeps save/load from drifting out of sync with PLAN_DAYS.
+  JsonDocument doc;
+  JsonArray arr = doc.to<JsonArray>();
+  for (int i = 0; i < cfg.planCount; i++) {
+    JsonObject o = arr.add<JsonObject>();
+    o["date"] = cfg.plan[i].date;
+    o["isFeedDay"] = cfg.plan[i].isFeedDay;
+    o["doseMl"] = cfg.plan[i].doseMl;
+    o["fungicideDue"] = cfg.plan[i].fungicideDue;
+    o["fungicideDoseMl"] = cfg.plan[i].fungicideDoseMl;
+  }
+  String planJson;
+  serializeJson(doc, planJson);
+  prefs.putString("plan", planJson);
+
   prefs.putBool("valid", true);
   prefs.end();
 }
@@ -35,16 +53,31 @@ DeviceConfig load() {
     cfg.tempAbove = prefs.getFloat("tempAbove", cfg.tempAbove);
     cfg.windowStart = prefs.getString("windowStart", cfg.windowStart);
     cfg.windowEnd = prefs.getString("windowEnd", cfg.windowEnd);
-    cfg.cycleWeeks = prefs.getInt("cycleWeeks", cfg.cycleWeeks);
-    cfg.feedStartDate = prefs.getString("feedStart", cfg.feedStartDate);
-    cfg.preWaterWaitMinutes = prefs.getInt("preWaterMin", cfg.preWaterWaitMinutes);
-    cfg.doseMl = prefs.getInt("doseMl", cfg.doseMl);
-    cfg.fungicideIntervalDays = prefs.getInt("fungicideDays", cfg.fungicideIntervalDays);
+    cfg.fungicideDoseMl = prefs.getInt("fungicideDoseMl", cfg.fungicideDoseMl);
     cfg.fungicideLastSprayedDate = prefs.getString("fungicideLast", cfg.fungicideLastSprayedDate);
+    cfg.lastFedDate = prefs.getString("lastFedDate", cfg.lastFedDate);
     cfg.paused = prefs.getBool("paused", cfg.paused);
     cfg.skipFeedOnce = prefs.getBool("skipFeed", cfg.skipFeedOnce);
-    cfg.dechlorinateHours = prefs.getInt("dechlorHrs", cfg.dechlorinateHours);
+    cfg.tankReady = prefs.getBool("tankReady", cfg.tankReady);
+    cfg.tankLow = prefs.getBool("tankLow", cfg.tankLow);
     cfg.pumpFlowLpm = prefs.getFloat("pumpFlowLpm", cfg.pumpFlowLpm);
+    cfg.scheduleVersion = prefs.getInt("scheduleVer", cfg.scheduleVersion);
+
+    String planJson = prefs.getString("plan", "[]");
+    JsonDocument doc;
+    if (deserializeJson(doc, planJson) == DeserializationError::Ok) {
+      cfg.planCount = 0;
+      for (JsonVariant day : doc.as<JsonArray>()) {
+        if (cfg.planCount >= PLAN_DAYS) break;
+        PlanDay &pd = cfg.plan[cfg.planCount];
+        pd.date = day["date"] | "";
+        pd.isFeedDay = day["isFeedDay"] | false;
+        pd.doseMl = day["doseMl"] | 0;
+        pd.fungicideDue = day["fungicideDue"] | false;
+        pd.fungicideDoseMl = day["fungicideDoseMl"] | 0;
+        cfg.planCount++;
+      }
+    }
   }
   prefs.end();
   return cfg;
@@ -76,21 +109,6 @@ String loadDeviceKey() {
   Preferences prefs;
   prefs.begin(NVS_NAMESPACE, true);
   String v = prefs.getString("deviceKey", "");
-  prefs.end();
-  return v;
-}
-
-void saveTankFilledAt(unsigned long epochSeconds) {
-  Preferences prefs;
-  prefs.begin(NVS_NAMESPACE, false);
-  prefs.putULong("tankFilledAt", epochSeconds);
-  prefs.end();
-}
-
-unsigned long loadTankFilledAt() {
-  Preferences prefs;
-  prefs.begin(NVS_NAMESPACE, true);
-  unsigned long v = prefs.getULong("tankFilledAt", 0);
   prefs.end();
   return v;
 }

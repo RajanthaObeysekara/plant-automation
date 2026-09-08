@@ -381,6 +381,7 @@ function runRoom(room) {
   let lastFedOn = null;
   let lastFungicideReminderOn = null;
   let lastSkippedReminderOn = null;
+  let firstFetch = true; // marks the very next config GET as a "boot" — see ?boot=1 below
   const MIST_COOLDOWN_MS = 5 * 60 * 1000;
 
   async function setStatus(activity) {
@@ -472,7 +473,13 @@ function runRoom(room) {
     try {
       const now = new Date();
       try {
-        cachedConfig = await api(deviceKey, '/api/device/room/config');
+        // ?boot=1 only on the very first fetch of this process's life — a
+        // real device would send this once per power-on, but the simulator
+        // process itself only "boots" once (a restart of this container
+        // simulates every room in it rebooting, so this fires again then).
+        const bootQuery = firstFetch ? '?boot=1' : '';
+        firstFetch = false;
+        cachedConfig = await api(deviceKey, `/api/device/room/config${bootQuery}`);
       } catch (err) {
         console.warn(`[room:${label}] sync failed:`, err.message);
         if (!cachedConfig) return;
@@ -482,7 +489,10 @@ function runRoom(room) {
       try {
         await api(deviceKey, '/api/device/room/telemetry', {
           method: 'POST',
-          body: JSON.stringify({ humidity: reading.humidity, tempC: reading.tempC, raining: reading.raining }),
+          body: JSON.stringify({
+            humidity: reading.humidity, tempC: reading.tempC, raining: reading.raining,
+            scheduleVersion: cachedConfig.scheduleVersion,
+          }),
         });
       } catch (err) {
         console.warn(`[room:${label}] telemetry push failed:`, err.message);
