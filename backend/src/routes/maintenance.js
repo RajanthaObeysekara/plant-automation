@@ -13,22 +13,22 @@ function withDueInfo(task) {
 
 router.get('/', requireUser, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT * FROM maintenance_tasks WHERE unit_id = $1 ORDER BY recurrence_days',
-    [req.params.unitId]
+    'SELECT * FROM maintenance_tasks WHERE room_id = $1 ORDER BY recurrence_days',
+    [req.params.roomId]
   );
   res.json(rows.map(withDueInfo));
 });
 
 router.post('/:taskId/complete', requireUser, async (req, res) => {
   const { rows } = await pool.query(
-    'UPDATE maintenance_tasks SET last_completed_at = now() WHERE id = $1 AND unit_id = $2 RETURNING *',
-    [req.params.taskId, req.params.unitId]
+    'UPDATE maintenance_tasks SET last_completed_at = now() WHERE id = $1 AND room_id = $2 RETURNING *',
+    [req.params.taskId, req.params.roomId]
   );
   if (!rows[0]) return res.status(404).json({ error: 'task not found' });
 
   await pool.query(
-    'INSERT INTO events (unit_id, type, meta) VALUES ($1,$2,$3)',
-    [req.params.unitId, 'maintenance_done', JSON.stringify({ task: rows[0].title })]
+    'INSERT INTO events (room_id, type, meta) VALUES ($1,$2,$3)',
+    [req.params.roomId, 'maintenance_done', JSON.stringify({ task: rows[0].title })]
   );
 
   res.json(withDueInfo(rows[0]));

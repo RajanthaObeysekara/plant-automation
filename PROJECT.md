@@ -80,7 +80,7 @@ Core tables (see `db/init.sql` for the authoritative, current schema):
 | `fungicide_interval_days`, `fungicide_last_sprayed_date` | Reminder cadence (spraying itself is manual unless `fungicide_automated`) |
 | `fungicide_dose_ml`, `fungicide_mix_ratio_ml_per_l`, `fungicide_batch_water_l` | Same mix-ratio pattern as feed, for the fungicide line |
 | `feed_product_early`, `feed_product_late`, `fungicide_product` | Free-text product names (see §6 for the actual products in use) |
-| `fungicide_automated` | Opt-in — requires the dedicated 3rd pump/valve line + its own coarse nozzle, **never** the fine fogging manifold |
+| `fungicide_automated` | Opt-in — dosed through the same water line and sprayed via the regular fogging nozzles; flush with plain water right after dosing so wettable-powder residue doesn't sit in the nozzles |
 | `autofill_enabled` | Opt-in — requires the low+full water level sensor pair and inlet valve |
 | `dechlorinate_hours` | **New.** Hours to hold misting after every tank fill (mains is chlorinated). Default 24. Editable per-unit from the dashboard — no reflash needed. |
 | `pump_flow_lpm` | **New.** Actual misting pump flow rate, used to estimate volume dosed. Editable per-unit. |
@@ -133,7 +133,7 @@ Matches `firmware/esp32-unit/src/Config.h` exactly — if you rewire differently
 | Relay IN3 (feed pump) | GPIO27 | |
 | Relay IN4 (feed valve) | GPIO33 | |
 | Relay IN5 (fungicide pump) | GPIO17 | Opt-in — wire only if `fungicide_automated` |
-| Relay IN6 (fungicide valve) | GPIO18 | Feeds the dedicated coarse nozzle — never the fine fogging manifold |
+| Relay IN6 (fungicide valve) | GPIO18 | Injects into the shared water line — sprayed through the regular fogging nozzles |
 | Relay IN7 (water inlet valve) | GPIO19 | Opt-in — wire only if `autofill_enabled` |
 | Relay VCC (logic side) | 5V rail | Same rail as ESP32 — do not connect to the 12V bus |
 | Relay COM (switched side) | 12V bus | Actually powers the pumps/valves |
@@ -183,7 +183,7 @@ Non-blocking — no multi-minute `delay()` calls, so telemetry/sync keep running
 2. **Dry-run guard** — `lowDetected` must be true or the pump never runs, forced request or not.
 3. **Dechlorination hold** (`tankReady()`) — blocks misting until `dechlorinateHours` has passed since the last fill. Clock is NVS-persisted (`tankFilledAtEpoch`), so a reboot doesn't reset it early; if the RTC hasn't synced via NTP yet, `tankReady()` conservatively returns `false` rather than assuming it's safe.
 4. **Active-low relay assumption** (`RELAY_ACTIVE_LOW`) — must match the actual relay board or every relay is inverted.
-5. **Fungicide line separation** — the fungicide pump/valve feed a dedicated coarse nozzle that never tees into the shared fine fogging manifold. This is a plumbing invariant the firmware cannot detect or enforce; get it right physically.
+5. **Fungicide flush-after-dose** — the fungicide pump/valve inject into the same water line as misting/feed, sprayed through the regular fogging nozzles. Wettable-powder residue left standing in the fine nozzles will clog them, so a dosing cycle should end with a plain-water flush through the same line. This is a plumbing/sequencing concern the firmware cannot fully enforce on its own; get the flush step right.
 
 ### 7.4 Status reporting
 

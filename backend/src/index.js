@@ -7,10 +7,11 @@ const { bootstrap } = require('./bootstrap');
 const { verifySocketToken } = require('./auth');
 const authRoutes = require('./routes/auth');
 const templateRoutes = require('./routes/templates');
-const unitRoutes = require('./routes/units');
+const buildRoomsRouter = require('./routes/rooms');
+const buildBenchesRouter = require('./routes/benches');
 const farmRoutes = require('./routes/farms');
 const maintenanceRoutes = require('./routes/maintenance');
-const { buildDeviceRouter } = require('./routes/device');
+const { buildRoomDeviceRouter, buildFarmDeviceRouter } = require('./routes/device');
 
 const app = express();
 app.use(cors());
@@ -27,18 +28,19 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('subscribe', (unitId) => {
-    socket.join(`unit:${unitId}`);
-  });
+  socket.on('subscribe_room', (roomId) => socket.join(`room:${roomId}`));
+  socket.on('subscribe_farm', (farmId) => socket.join(`farm:${farmId}`));
 });
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/templates', templateRoutes);
-app.use('/api/units', unitRoutes);
+app.use('/api/rooms', buildRoomsRouter(io));
+app.use('/api/benches', buildBenchesRouter(io));
 app.use('/api/farms', farmRoutes);
-app.use('/api/units/:unitId/maintenance', maintenanceRoutes);
-app.use('/api/device', buildDeviceRouter(io));
+app.use('/api/rooms/:roomId/maintenance', maintenanceRoutes);
+app.use('/api/device/room', buildRoomDeviceRouter(io));
+app.use('/api/device/farm', buildFarmDeviceRouter(io));
 
 const PORT = process.env.PORT || 4000;
 

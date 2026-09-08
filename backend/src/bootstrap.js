@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { pool } = require('./db');
 
 const VARIETY_TEMPLATES = [
@@ -35,13 +36,21 @@ const DEFAULTS = {
   pump_flow_lpm: 4.5,
 };
 
-const DEFAULT_MAINTENANCE_TASKS = [
-  { title: 'Clean fertilizer feed tank', recurrence_days: 30 },
+// The room's own equipment (its misting nozzles) vs. the farm's shared rig
+// (one tank + one mixing station feeding every room).
+const DEFAULT_ROOM_MAINTENANCE = [
   { title: 'Rinse & inspect fogging nozzles', recurrence_days: 14 },
+];
+const DEFAULT_FARM_MAINTENANCE = [
+  { title: 'Clean fertilizer feed tank', recurrence_days: 30 },
   { title: 'Check inline filter for debris', recurrence_days: 14 },
   { title: 'Recalibrate dosing pump flow rate', recurrence_days: 30 },
   { title: 'Clean main water tank', recurrence_days: 60 },
 ];
+
+function newDeviceKey() {
+  return crypto.randomBytes(16).toString('hex');
+}
 
 async function ensureAdminUser() {
   const { rows } = await pool.query('SELECT id FROM users LIMIT 1');
@@ -89,67 +98,44 @@ async function ensureTemplates() {
   }
 }
 
-async function ensureDefaultFarm() {
-  const farm = await pool.query(
-    `INSERT INTO farms (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
-    ['Kadawatha Farm']
-  );
-  const farmId = farm.rows[0]
-    ? farm.rows[0].id
-    : (await pool.query('SELECT id FROM farms WHERE name = $1', ['Kadawatha Farm'])).rows[0].id;
-
-  const room = await pool.query(
-    `INSERT INTO rooms (farm_id, name) VALUES ($1,$2) ON CONFLICT (farm_id, name) DO NOTHING RETURNING id`,
-    [farmId, 'Greenhouse Room 1']
-  );
-  return room.rows[0]
-    ? room.rows[0].id
-    : (await pool.query('SELECT id FROM rooms WHERE farm_id = $1 AND name = $2', [farmId, 'Greenhouse Room 1'])).rows[0].id;
-}
-
-async function ensureMaintenanceTasks(unitId) {
-  const { rows } = await pool.query('SELECT id FROM maintenance_tasks WHERE unit_id = $1', [unitId]);
+async function ensureFarmMaintenance(farmId) {
+  const { rows } = await pool.query('SELECT id FROM maintenance_tasks WHERE farm_id = $1', [farmId]);
   if (rows.length > 0) return;
-  for (const task of DEFAULT_MAINTENANCE_TASKS) {
+  for (const task of DEFAULT_FARM_MAINTENANCE) {
     await pool.query(
-      'INSERT INTO maintenance_tasks (unit_id, title, recurrence_days) VALUES ($1,$2,$3)',
-      [unitId, task.title, task.recurrence_days]
+      'INSERT INTO maintenance_tasks (farm_id, title, recurrence_days) VALUES ($1,$2,$3)',
+      [farmId, task.title, task.recurrence_days]
     );
   }
 }
 
-async function ensureDemoUnit() {
-  const deviceKey = process.env.DEMO_DEVICE_KEY;
-  if (!deviceKey) return;
-
-  const roomId = await ensureDefaultFarm();
-
-  const existing = await pool.query('SELECT id FROM units WHERE device_key = $1', [deviceKey]);
-  if (existing.rows.length > 0) {
-    await pool.query('UPDATE units SET room_id = COALESCE(room_id, $2) WHERE id = $1', [existing.rows[0].id, roomId]);
-    await ensureMaintenanceTasks(existing.rows[0].id);
-    return;
+async function ensureRoomMaintenance(roomId) {
+  const { rows } = await pool.query('SELECT id FROM maintenance_tasks WHERE room_id = $1', [roomId]);
+  if (rows.length > 0) return;
+  for (const task of DEFAULT_ROOM_MAINTENANCE) {
+    await pool.query(
+      'INSERT INTO maintenance_tasks (room_id, title, recurrence_days) VALUES ($1,$2,$3)',
+      [roomId, task.title, task.recurrence_days]
+    );
   }
+}
 
-  const template = await pool.query('SELECT * FROM templates WHERE name = $1', ['Bangkok Peach']);
+async function ensureRoomSchedule(roomId, templateName) {
+  const existing = await pool.query('SELECT room_id FROM room_schedules WHERE room_id = $1', [roomId]);
+  if (existing.rows.length > 0) return;
+
+  const template = await pool.query('SELECT * FROM templates WHERE name = $1', [templateName]);
   const t = template.rows[0] || DEFAULTS;
 
-  const unit = await pool.query(
-    'INSERT INTO units (name, bench, room_id, device_key) VALUES ($1,$2,$3,$4) RETURNING id',
-    ['Kadawatha Bench 1', 'Bench A', roomId, deviceKey]
-  );
-  const unitId = unit.rows[0].id;
-
   await pool.query(
-    `INSERT INTO unit_schedules
-      (unit_id, template_id, humidity_below, temp_above, window_start, window_end,
+    `INSERT INTO room_schedules
+      (room_id, template_id, humidity_below, temp_above, window_start, window_end,
        poll_seconds, cycle_weeks, pre_water_wait_minutes, dose_ml, fungicide_interval_days,
        feed_product_early, feed_product_late, fungicide_product, fungicide_dose_ml, fungicide_automated,
-       feed_mix_ratio_ml_per_l, feed_batch_water_l, fungicide_mix_ratio_ml_per_l, fungicide_batch_water_l,
-       dechlorinate_hours, pump_flow_lpm)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
+       feed_mix_ratio_ml_per_l, feed_batch_water_l, fungicide_mix_ratio_ml_per_l, fungicide_batch_water_l)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
     [
-      unitId,
+      roomId,
       t.id || null,
       t.humidity_below,
       t.temp_above,
@@ -169,18 +155,63 @@ async function ensureDemoUnit() {
       t.feed_batch_water_l ?? DEFAULTS.feed_batch_water_l,
       t.fungicide_mix_ratio_ml_per_l ?? DEFAULTS.fungicide_mix_ratio_ml_per_l,
       t.fungicide_batch_water_l ?? DEFAULTS.fungicide_batch_water_l,
-      DEFAULTS.dechlorinate_hours,
-      DEFAULTS.pump_flow_lpm,
     ]
   );
-  await ensureMaintenanceTasks(unitId);
-  console.log(`[bootstrap] created demo unit "Kadawatha Bench 1" (id ${unitId})`);
+}
+
+async function ensureBenches(roomId, count) {
+  const { rows } = await pool.query('SELECT id FROM benches WHERE room_id = $1', [roomId]);
+  if (rows.length > 0) return;
+  const cols = Math.min(count, 5);
+  for (let i = 1; i <= count; i += 1) {
+    const col = (i - 1) % cols;
+    const row = Math.floor((i - 1) / cols);
+    await pool.query(
+      `INSERT INTO benches (room_id, name, row_label, pos_x, pos_y) VALUES ($1,$2,$3,$4,$5)`,
+      [
+        roomId,
+        `Bench ${i}`,
+        `Row ${row + 1}`,
+        Math.round((10 + col * (80 / Math.max(cols - 1, 1))) * 10) / 10,
+        Math.round((25 + row * 40) * 10) / 10,
+      ]
+    );
+  }
+}
+
+async function ensureDemoFarm() {
+  const deviceKey = process.env.DEMO_DEVICE_KEY;
+  if (!deviceKey) return;
+
+  let farm = (await pool.query('SELECT * FROM farms WHERE name = $1', ['Kadawatha Farm'])).rows[0];
+  if (!farm) {
+    farm = (await pool.query(
+      'INSERT INTO farms (name, device_key) VALUES ($1,$2) RETURNING *',
+      ['Kadawatha Farm', `${deviceKey}-farm`]
+    )).rows[0];
+    console.log(`[bootstrap] created demo farm "Kadawatha Farm" (id ${farm.id})`);
+  }
+  await ensureFarmMaintenance(farm.id);
+
+  let room = (await pool.query(
+    'SELECT * FROM rooms WHERE farm_id = $1 AND name = $2', [farm.id, 'Greenhouse Room 1']
+  )).rows[0];
+  if (!room) {
+    room = (await pool.query(
+      'INSERT INTO rooms (farm_id, name, device_key) VALUES ($1,$2,$3) RETURNING *',
+      [farm.id, 'Greenhouse Room 1', deviceKey]
+    )).rows[0];
+    console.log(`[bootstrap] created demo room "Greenhouse Room 1" (id ${room.id})`);
+  }
+  await ensureRoomSchedule(room.id, 'Bangkok Peach');
+  await ensureRoomMaintenance(room.id);
+  await ensureBenches(room.id, 5);
 }
 
 async function bootstrap() {
   await ensureAdminUser();
   await ensureTemplates();
-  await ensureDemoUnit();
+  await ensureDemoFarm();
 }
 
-module.exports = { bootstrap };
+module.exports = { bootstrap, newDeviceKey };

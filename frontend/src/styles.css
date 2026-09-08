@@ -140,6 +140,16 @@ input[type="checkbox"] { width: auto; }
   .tank-alert-dot { animation: none; }
 }
 
+.fert-rig { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.fert-rig-stages { display: flex; justify-content: space-between; width: 100%; max-width: 220px; margin-top: -4px; }
+.fert-rig-stages span { font-size: 9px; color: var(--muted); }
+.fert-rig-stages span.active { color: var(--fert-ink); font-weight: 600; }
+.fert-rig-label { font-size: 11px; font-weight: 600; text-align: center; max-width: 200px; line-height: 1.25; margin-top: 2px; }
+.fert-node-active { animation: pulse 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) {
+  .fert-node-active { animation: none; }
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -185,9 +195,13 @@ input[type="checkbox"] { width: auto; }
 .sidebar-head h2 { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 600; }
 
 .farm-block { margin-bottom: 16px; }
-.farm-name { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13.5px; padding: 4px 0; }
+.farm-name { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; row-gap: 4px; font-weight: 600; font-size: 13.5px; padding: 4px 0; }
 .room-block { margin: 4px 0 4px 10px; border-left: 1px solid var(--line); padding-left: 10px; }
-.room-name { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: var(--muted); padding: 4px 0; }
+.room-name { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; row-gap: 4px; font-size: 12.5px; color: var(--muted); padding: 4px 0; }
+.farm-name > .row, .room-name > .row { min-width: 0; flex: 1 1 auto; }
+.farm-name .crumb-link, .room-name .crumb-link {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
 
 .crumb-link {
   background: none; border: none; color: inherit; font: inherit; font-weight: inherit;
@@ -196,7 +210,22 @@ input[type="checkbox"] { width: auto; }
 }
 .crumb-link:hover { background: var(--surface-2); }
 .crumb-link.active { background: color-mix(in srgb, var(--water) 14%, transparent); color: var(--water-ink); }
-.avg-badge { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.avg-badge { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; flex: none; }
+
+.chevron-btn {
+  background: none; border: none; color: var(--faint); cursor: pointer;
+  padding: 2px 2px; display: flex; align-items: center; flex: none;
+}
+.chevron-btn:hover { color: var(--ink); }
+.chevron { display: inline-block; font-size: 10px; transition: transform 120ms ease; }
+.chevron.open { transform: rotate(90deg); }
+
+.bench-list { margin: 2px 0 6px 10px; display: flex; flex-direction: column; gap: 1px; }
+.bench-list-item {
+  display: block; width: 100%; background: none; border: none; color: var(--muted);
+  font-size: 12px; padding: 4px 8px; border-radius: 5px; cursor: pointer; text-align: left;
+}
+.bench-list-item:hover { background: var(--surface-2); color: var(--ink); }
 
 .unit-list-item {
   display: flex;
@@ -242,7 +271,7 @@ input[type="checkbox"] { width: auto; }
 .badge.offline { color: var(--muted); }
 .badge.idle { color: var(--muted); }
 .badge.live { border-color: var(--water); color: var(--water-ink); background: color-mix(in srgb, var(--water) 10%, transparent); }
-.badge.live.feeding { border-color: var(--fert); color: var(--fert-ink); background: color-mix(in srgb, var(--fert) 10%, transparent); }
+.badge.live.feeding, .badge.live.mixing, .badge.live.stirring, .badge.live.filtering { border-color: var(--fert); color: var(--fert-ink); background: color-mix(in srgb, var(--fert) 10%, transparent); }
 .badge.live.fungicide { border-color: var(--warn); color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
 .badge.live.filling { border-color: var(--water); color: var(--water-ink); background: color-mix(in srgb, var(--water) 10%, transparent); }
 .badge.live.dechlorinating { border-color: var(--warn); color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
@@ -291,6 +320,14 @@ input[type="checkbox"] { width: auto; }
 .maintenance-list li.overdue { background: color-mix(in srgb, var(--warn) 12%, var(--surface-2)); }
 .task-title { font-size: 13.5px; font-weight: 500; }
 
+.valve-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.valve-list li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 7px; background: var(--surface-2);
+}
+.valve-list li.open { background: color-mix(in srgb, var(--water) 12%, var(--surface-2)); }
+.valve-list-name { font-size: 13.5px; font-weight: 500; flex: 1; }
+
 .event-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; }
 .event-log li { display: flex; gap: 10px; align-items: center; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
 .event-type { font-family: "IBM Plex Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 4px; background: var(--surface-2); }
@@ -302,21 +339,103 @@ input[type="checkbox"] { width: auto; }
 .event-type.reading { color: var(--muted); background: none; }
 .reading-row { opacity: 0.7; font-size: 12.5px; }
 
-/* ---------- Farm / room overviews ---------- */
-.summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
-.unit-summary-card {
-  display: block; text-align: left; width: 100%;
-  background: var(--surface); color: var(--ink);
-  border: 1px solid var(--line); cursor: pointer;
-  transition: border-color 120ms ease, box-shadow 120ms ease, transform 80ms ease;
+/* ---------- Live farm pipeline animation ---------- */
+.farm-pipeline-wrap {
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2);
+  padding: 12px; overflow-x: auto;
 }
-.unit-summary-card:hover { border-color: var(--water); box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.unit-summary-name { font-weight: 600; font-size: 13.5px; }
+.farm-pipeline-svg { width: 100%; min-width: 640px; height: auto; display: block; }
+.farm-pipeline-legend {
+  display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; padding-top: 8px;
+  border-top: 1px dashed var(--line); font-size: 11px; color: var(--muted);
+}
+.farm-pipeline-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.fp-swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+.fp-swatch.dashed { background: none; border-top: 2px dashed var(--line-strong); height: 0; }
+
+.fp-pipe-flowing { stroke-dasharray: 5 4; animation: fp-flow 0.6s linear infinite; }
+@keyframes fp-flow { to { stroke-dashoffset: -18; } }
+
+.fp-valve-open rect { animation: fp-valve-glow 1.4s ease-in-out infinite; }
+@keyframes fp-valve-glow { 0%, 100% { filter: none; } 50% { filter: drop-shadow(0 0 3px currentColor); } }
+
+.fp-pump-running circle.fp-pump-spin { animation: fp-pump-pulse 0.9s ease-in-out infinite; }
+@keyframes fp-pump-pulse { 0%, 100% { r: 5; } 50% { r: 6.5; } }
+
+.fp-stir-spin { animation: fp-spin 1.1s linear infinite; }
+@keyframes fp-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.fp-limit-pulse { animation: fp-limit-pulse 1s ease-in-out infinite; }
+@keyframes fp-limit-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.fp-droplet { animation: fp-droplet-fall 0.9s ease-in infinite; opacity: 0; }
+@keyframes fp-droplet-fall {
+  0% { opacity: 0; transform: translateY(0); }
+  15% { opacity: 1; }
+  90% { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(10px); }
+}
+/* Tank liquid rises/falls smoothly on a telemetry update instead of
+   snapping straight to the new level. */
+.fp-fill-rect { transition: y 0.7s ease, height 0.7s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .fp-pipe-flowing, .fp-valve-open rect, .fp-pump-running circle.fp-pump-spin,
+  .fp-stir-spin, .fp-limit-pulse, .fp-droplet { animation: none; }
+  .fp-fill-rect { transition: none; }
+}
+
+/* ---------- Room / farm floor-plan map ---------- */
+.room-map {
+  position: relative; width: 100%; border: 1px solid var(--line); border-radius: 10px;
+  background-color: var(--surface-2);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--line) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 60%, transparent) 1px, transparent 1px);
+  background-size: 5% 10%;
+  overflow: hidden;
+  touch-action: none;
+  margin-bottom: 14px;
+}
+.map-empty {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+}
+.bench-pin {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: none; border: none; padding: 4px; cursor: grab; touch-action: none;
+  z-index: 1;
+}
+.bench-pin:active, .bench-pin.dragging { cursor: grabbing; z-index: 5; }
+.bench-pin-dot {
+  width: 11px; height: 11px; border-radius: 50%; background: var(--water);
+  border: 2px solid var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.bench-pin.dragging .bench-pin-dot { box-shadow: 0 0 0 4px color-mix(in srgb, var(--water) 35%, transparent); }
+.bench-pin-label {
+  font-size: 9.5px; color: var(--muted); background: var(--surface); border: 1px solid var(--line);
+  padding: 1px 4px; border-radius: 4px; white-space: nowrap; pointer-events: none;
+}
 
 /* ---------- Templates page ---------- */
 .template-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 16px; }
 .template-card { border-top: 2px solid var(--water); }
 .template-card button { margin-top: 14px; width: 100%; }
+
+/* ---------- Tank calibration ---------- */
+.calibration-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-top: 10px; }
+.calibration-card { border-top: 2px solid var(--fert); }
+.calibration-card h4 { margin: 0 0 2px; font-size: 14px; }
+.calibration-result {
+  margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: var(--surface-2);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.calibration-result-value { font-size: 13px; font-weight: 600; }
+.calibration-result-value.mono { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 500; word-break: break-word; }
+.calibration-live {
+  display: flex; align-items: center; gap: 6px; margin: 2px 0 12px;
+  padding: 6px 10px; border-radius: 7px; background: var(--surface-2);
+}
+.calibration-live-value { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; margin-left: auto; }
 
 /* ---------- Modals ---------- */
 .modal-backdrop {
@@ -325,16 +444,6 @@ input[type="checkbox"] { width: auto; }
   z-index: 50;
 }
 .modal { width: 340px; box-shadow: var(--shadow-md); }
-.device-key {
-  display: block;
-  background: var(--surface-2);
-  padding: 10px;
-  border-radius: 6px;
-  word-break: break-all;
-  margin: 10px 0 16px;
-  font-size: 13px;
-  font-family: "IBM Plex Mono", monospace;
-}
 
 /* ---------- Tooltips (CSS-only) ---------- */
 .tip { position: relative; display: inline-block; }

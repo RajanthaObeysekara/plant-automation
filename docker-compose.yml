@@ -10,7 +10,7 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-plantapp}"]
       interval: 5s
@@ -41,16 +41,21 @@ services:
     ports:
       - "8090:80"
 
-  device-simulator:
-    build: ./device-simulator
+  # Plays every ESP32 controller in the fleet, in one process: a room
+  # controller per greenhouse (shared env sensor + misting) and a farm
+  # controller per site (shared water tank + fertigation rig). Sensor
+  # baselines track real current weather at each farm's location.
+  simulator:
+    build: ./simulator
     restart: unless-stopped
     environment:
       BACKEND_URL: http://backend:4000
-      DEVICE_KEY: ${DEMO_DEVICE_KEY:-dev-unit-1-key}
-      UNIT_LABEL: unit-1
-      POLL_INTERVAL_MS: "15000"
+      DATABASE_URL: postgres://${POSTGRES_USER:-plantapp}:${POSTGRES_PASSWORD:-plantapp}@db:5432/${POSTGRES_DB:-plantapp}
     depends_on:
-      - backend
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
 
 volumes:
   db_data:
