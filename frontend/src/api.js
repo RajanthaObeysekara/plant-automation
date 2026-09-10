@@ -58,6 +58,7 @@ export const api = {
   farmMaintenance: (id) => request(`/farms/${id}/maintenance`),
   completeFarmMaintenance: (id, taskId) => request(`/farms/${id}/maintenance/${taskId}/complete`, { method: 'POST' }),
   farmCommand: (id, type) => request(`/farms/${id}/command`, { method: 'POST', body: JSON.stringify({ type }) }),
+  farmCommands: (id) => request(`/farms/${id}/commands`),
 
   // Load-cell calibration (tare + known-weight scale factor) for each of
   // the farm's 3 physical tanks.

@@ -123,6 +123,18 @@ router.get('/:id/history', async (req, res) => {
   res.json({ tank: tank.rows.reverse(), events: events.rows.reverse() });
 });
 
+router.get('/:id/commands', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const { rows } = await pool.query(
+    `SELECT c.id, c.type, c.status, c.created_at, c.delivered_at, r.name AS room_name
+     FROM commands c LEFT JOIN rooms r ON r.id = c.room_id
+     WHERE c.farm_id = $1 OR c.room_id IN (SELECT id FROM rooms WHERE farm_id = $1)
+     ORDER BY c.created_at DESC LIMIT $2`,
+    [req.params.id, limit]
+  );
+  res.json(rows);
+});
+
 function withDueInfo(task) {
   const last = task.last_completed_at ? new Date(task.last_completed_at) : null;
   const dueDate = last ? new Date(last.getTime() + task.recurrence_days * 86400000) : new Date();

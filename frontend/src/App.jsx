@@ -4,7 +4,6 @@ import { api, setToken, clearToken, getToken } from './api';
 import Sparkline from './Sparkline';
 import Tip from './Tooltip';
 import WaterTank from './WaterTank';
-import FertilizerRig from './FertilizerRig';
 import FarmPipeline from './FarmPipeline';
 import { nextMistWindow, feedForecast, fungicideForecast } from './forecast';
 
@@ -53,6 +52,16 @@ function Login({ onLoggedIn }) {
 function isOnline(entity) {
   if (!entity?.last_seen_at) return false;
   return Date.now() - new Date(entity.last_seen_at).getTime() < 90 * 1000;
+}
+
+function dechlorRemaining(farm) {
+  if (!farm || farm.tank_activity !== 'dechlorinating' || !farm.tank_filled_at || !farm.dechlorinate_hours) return null;
+  const readyAt = new Date(farm.tank_filled_at).getTime() + farm.dechlorinate_hours * 3600000;
+  const msLeft = readyAt - Date.now();
+  if (msLeft <= 0) return null;
+  const h = Math.floor(msLeft / 3600000);
+  const m = Math.round((msLeft % 3600000) / 60000);
+  return `${h}h ${m}m left`;
 }
 
 function timeAgo(iso) {
@@ -645,85 +654,105 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
   const online = isOnline(room);
   const activity = roomActivity(room, farm);
   const beingFedByFarm = farm && farm.fert_activity !== 'idle' && farm.fert_activity_room_id === room.id;
+  const tankBlocked = farm && (farm.water_low || farm.tank_activity === 'dechlorinating' || farm.tank_activity === 'filling');
+  const overdueMaintenance = maintenance.filter((t) => t.overdue);
+  const synced = schedule && schedule.schedule_version === room.synced_schedule_version;
+
+  // One verdict, worst-first — this is meant to answer "does this room need
+  // me?" before any card below it does, so only one banner ever shows.
+  let verdict;
+  if (!online) {
+    verdict = { tone: 'crit', title: 'Offline', detail: "Hasn't checked in for over 90 seconds — running on its last-synced schedule until it reconnects." };
+  } else if (fungicide?.overdue) {
+    verdict = { tone: 'crit', title: 'Needs attention', detail: `Fungicide spray is overdue by ${Math.abs(fungicide.daysLeft)} day(s) — always sprayed by hand, never automated.` };
+  } else if (overdueMaintenance.length > 0) {
+    verdict = { tone: 'warn', title: 'Needs attention', detail: `${overdueMaintenance.length} overdue maintenance task${overdueMaintenance.length === 1 ? '' : 's'}: ${overdueMaintenance[0].title}${overdueMaintenance.length > 1 ? `, +${overdueMaintenance.length - 1} more` : ''}.` };
+  } else if (schedule?.paused) {
+    verdict = { tone: 'warn', title: 'Paused', detail: "Automation is paused on this room — it will not mist or feed until resumed." };
+  } else if (tankBlocked) {
+    verdict = { tone: 'warn', title: 'Tank not ready', detail: `${farm.name}'s shared tank is ${farm.water_low ? 'low' : farm.tank_activity} — misting here may be held back until it clears.` };
+  } else {
+    const bits = ['Misting on schedule.'];
+    if (feed && !feed.isToday) bits.push(`Next feed ${feed.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} (week ${feed.weekNumber}/${feed.cycleWeeks}).`);
+    else if (feed?.isToday) bits.push(`Feed due today (week ${feed.weekNumber}/${feed.cycleWeeks}).`);
+    if (overdueMaintenance.length === 0 && maintenance.length > 0) bits.push('No overdue maintenance.');
+    verdict = { tone: 'good', title: 'Running normally', detail: bits.join(' ') };
+  }
 
   return (
     <div className="unit-detail">
-      <header className="unit-header">
-        <div>
-          <div className="crumb muted small">{farm?.name || 'Unassigned'}</div>
-          <h2>🏠 {room.name}</h2>
-          <div className="row gap wrap">
-            <Tip text={online ? 'Synced with the backend in the last 90 seconds' : "Hasn't synced in over 90 seconds — check its Wi-Fi or power"}>
-              <span className={`badge ${online ? 'ok' : 'offline'}`}>{online ? 'Online' : 'Offline'}</span>
-            </Tip>
-            <ActivityBadge activity={activity} />
-            <span className="muted small">{benches.length} bench{benches.length === 1 ? '' : 'es'}</span>
+      <div className={`verdict-strip verdict-strip--${verdict.tone}`}>
+        <div className="verdict-main">
+          <div className="crumb muted small mono">{(farm?.name || 'UNASSIGNED').toUpperCase()} / {room.name.toUpperCase()}</div>
+          <div className="verdict-title">
+            <span className={`verdict-dot verdict-dot--${verdict.tone}`} />
+            <span>{verdict.title}</span>
+          </div>
+          <div className="verdict-detail">{verdict.detail}</div>
+        </div>
+
+        <div className="verdict-sync">
+          <div className="row gap" style={{ alignItems: 'center' }}>
+            <span className={`verdict-dot verdict-dot--${synced ? 'good' : 'warn'}`} style={{ width: 6, height: 6 }} />
+            <span className="mono small" style={{ fontWeight: 500 }}>
+              {synced ? `Synced to v${room.synced_schedule_version}` : `Sync pending (v${room.synced_schedule_version ?? '—'} → v${schedule?.schedule_version ?? '—'})`}
+            </span>
+          </div>
+          <div className="muted mono verdict-sync-meta">
+            {room.last_config_sync_at ? `CHECK-IN ${timeAgo(room.last_config_sync_at).toUpperCase()}` : 'NEVER SYNCED'}
+            {room.last_boot_at && <><br />REBOOT {timeAgo(room.last_boot_at).toUpperCase()}</>}
           </div>
         </div>
-        <div className="row gap wrap">
+
+        <div className="verdict-actions">
           {mistCountdown != null ? (
             <div className="row gap mist-confirm">
               <span className="badge warn"><span className="pulse-dot" />Starting in {mistCountdown}s…</span>
               <Tip text="Stop this before it actually mists">
-                <button className="ghost" onClick={cancelMistCountdown}>Cancel</button>
+                <button className="ghost small-btn" onClick={cancelMistCountdown}>Cancel</button>
               </Tip>
             </div>
           ) : (
             <Tip text="Mists every bench in this room together, a few seconds from now, with a chance to cancel">
-              <button disabled={busyCommand} onClick={startMistCountdown}>💧 Mist room now</button>
+              <button disabled={busyCommand} onClick={startMistCountdown}>💧 Mist now</button>
             </Tip>
           )}
-          <Tip text={schedule?.paused ? 'Resume automatic misting and feeding' : 'Pause all automatic misting and feeding until resumed'}>
-            <button disabled={busyCommand} className="ghost" onClick={() => sendCommand(schedule?.paused ? 'resume' : 'pause')}>
-              {schedule?.paused ? '▶ Resume' : '⏸ Pause'}
-            </button>
-          </Tip>
-          <Tip text="Skip the next scheduled feed step, if one is due today">
-            <button disabled={busyCommand} className="ghost" onClick={() => sendCommand('skip_feed')}>Skip today's feed</button>
-          </Tip>
+          <div className="row gap">
+            <Tip text={schedule?.paused ? 'Resume automatic misting and feeding' : 'Pause all automatic misting and feeding until resumed'}>
+              <button disabled={busyCommand} className="ghost" style={{ flex: 1 }} onClick={() => sendCommand(schedule?.paused ? 'resume' : 'pause')}>
+                {schedule?.paused ? 'Resume' : 'Pause'}
+              </button>
+            </Tip>
+            <Tip text="Skip the next scheduled feed step, if one is due today">
+              <button disabled={busyCommand} className="ghost" style={{ flex: 1 }} onClick={() => sendCommand('skip_feed')}>Skip feed</button>
+            </Tip>
+          </div>
           <Tip text="Download the full mist/feed event history as a CSV file">
-            <button className="ghost" onClick={() => api.downloadHistoryCsv(room.id, `${room.name.replace(/\s+/g, '-')}-events.csv`)}>⬇ Export CSV</button>
+            <button className="ghost small-btn" onClick={() => api.downloadHistoryCsv(room.id, `${room.name.replace(/\s+/g, '-')}-events.csv`)}>⬇ Export CSV</button>
           </Tip>
         </div>
-      </header>
+      </div>
 
-      {schedule?.paused && (
-        <div className="alert warn">⏸ Automation is paused on this room — it will not mist or feed until resumed.</div>
-      )}
-      {fungicide?.overdue && (
-        <div className="alert crit">🍄 Fungicide spray is overdue by {Math.abs(fungicide.daysLeft)} day(s). This is never automated — spray by hand.</div>
-      )}
-      {!online && (
-        <div className="alert crit">📡 This room hasn't reported in — it's running on its last-synced schedule until it reconnects.</div>
-      )}
-      {schedule && (
-        <div className={`alert small-alert ${schedule.schedule_version === room.synced_schedule_version ? '' : 'warn'}`}>
-          {schedule.schedule_version === room.synced_schedule_version
-            ? <>✓ Controller synced to v{room.synced_schedule_version} (7-day plan up to date)</>
-            : <>⏳ Sync pending — controller last confirmed v{room.synced_schedule_version ?? '—'}, server is on v{schedule.schedule_version}. Applies on its next check-in.</>}
-          {room.last_config_sync_at && <span className="muted"> · last check-in {timeAgo(room.last_config_sync_at)}</span>}
-          {room.last_boot_at && <span className="muted"> · last reboot {timeAgo(room.last_boot_at)}</span>}
-        </div>
-      )}
-      {farm && (farm.water_low || farm.tank_activity === 'dechlorinating') && (
-        <div className="alert warn small-alert">
-          🚰 {farm.name}'s shared tank is {farm.water_low ? 'low' : 'dechlorinating'} — misting here may be held back until it clears.{' '}
-          <button className="crumb-link" onClick={onGoToFarm}>View farm supply →</button>
-        </div>
-      )}
-      {beingFedByFarm && (
-        <div className="alert small-alert" style={{ borderColor: 'var(--fert)', color: 'var(--fert-ink)', background: 'color-mix(in srgb, var(--fert) 10%, transparent)' }}>
-          🧪 {farm.name}'s fertigation rig is currently {ACTIVITY_LABEL[farm.fert_activity]?.toLowerCase()} for this room.{' '}
-          <button className="crumb-link" onClick={onGoToFarm}>View farm rig →</button>
-        </div>
-      )}
+      <div className="row gap wrap" style={{ margin: '2px 0 14px' }}>
+        <ActivityBadge activity={activity} />
+        <span className="muted small">{benches.length} bench{benches.length === 1 ? '' : 'es'}</span>
+        {beingFedByFarm && (
+          <span className="muted small">
+            🧪 {farm.name}'s rig is {ACTIVITY_LABEL[farm.fert_activity]?.toLowerCase()} for this room ·{' '}
+            <button className="crumb-link" onClick={onGoToFarm}>view rig →</button>
+          </span>
+        )}
+        {tankBlocked && (
+          <button className="crumb-link small" onClick={onGoToFarm}>View farm supply →</button>
+        )}
+      </div>
 
       <section className="stat-row">
         <Stat label="Humidity" value={room.humidity != null ? `${room.humidity}%` : '—'} tip="Latest reading from this room's single environment sensor — shared by every bench in it">
           <Sparkline points={humidityPoints} min={30} max={95} color="var(--water)" />
         </Stat>
         <Stat label="Temperature" value={room.temp_c != null ? `${room.temp_c}°C` : '—'} tip="Latest temperature reading">
-          <Sparkline points={tempPoints} min={20} max={38} color="var(--fert)" />
+          <Sparkline points={tempPoints} min={20} max={38} color="var(--warn)" />
         </Stat>
         <Stat label="Rain" value={room.raining ? 'Raining — locked out' : 'Clear'} tip="While raining, misting is locked out even if thresholds are met" />
         <Stat label="Water used (recent)" value={`${(totalWaterMl / 1000).toFixed(2)} L`} tip="Sum of mist + feed volume across the events currently loaded, from the farm's shared tank" />
@@ -885,6 +914,21 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
         </div>
 
         <div className="stack">
+          {farm && (
+            <div className="card">
+              <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <h3>Shared tank</h3>
+                <button className="crumb-link small" onClick={onGoToFarm}>{farm.name} →</button>
+              </div>
+              <WaterTank
+                waterLow={farm.water_low}
+                waterFull={farm.water_full}
+                activity={farm.tank_activity === 'idle' ? undefined : farm.tank_activity}
+                dechlorLeftLabel={dechlorRemaining(farm)}
+              />
+            </div>
+          )}
+
           <div className="card">
             <h3>Live &amp; upcoming</h3>
             <ul className="upcoming-list">
@@ -918,27 +962,30 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
           </div>
 
           <div className="card">
-            <h3>7-Day Plan</h3>
-            <p className="muted small">Server-computed and pushed to the room controller on every sync — it's what the controller runs from while offline, not a live guess.</p>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <h3>7-Day Plan</h3>
+              <span className="muted small mono">SERVER-COMPUTED{plan ? ` · CACHED ON DEVICE v${plan.scheduleVersion}` : ''}</span>
+            </div>
             {plan ? (
-              <ul className="plan-list">
+              <div className="plan-grid">
                 {plan.days.map((d, i) => {
                   const date = new Date(d.date + 'T00:00:00');
                   const isToday = i === 0;
+                  const kind = d.isFeedDay ? 'feed' : d.fungicideDue ? 'fungicide' : 'plain';
                   return (
-                    <li key={d.date} className={isToday ? 'today' : ''}>
-                      <span className="plan-date">
-                        {isToday ? 'Today' : date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </span>
-                      <span className="plan-markers">
-                        {d.isFeedDay && <Tip text={`${d.doseMl} mL feed dose`}><span className="chip ok">Feed</span></Tip>}
-                        {d.fungicideDue && <Tip text="Fungicide due — always sprayed by hand"><span className="chip gap">Fungicide</span></Tip>}
-                        {!d.isFeedDay && !d.fungicideDue && <span className="muted small">—</span>}
-                      </span>
-                    </li>
+                    <Tip key={d.date} text={
+                      d.isFeedDay ? `${d.doseMl} mL feed dose` : d.fungicideDue ? 'Fungicide due — always sprayed by hand' : 'Mist only, threshold-driven'
+                    }>
+                      <div className={`plan-day plan-day--${kind}`}>
+                        <div className="plan-day-label">{isToday ? 'TODAY' : date.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase()} {date.getDate()}</div>
+                        <div className="plan-day-kind">{d.isFeedDay ? 'Feed' : d.fungicideDue ? 'Fungicide' : 'Mist only'}</div>
+                        {d.isFeedDay && <div className="plan-day-detail">{d.doseMl} mL</div>}
+                        {d.fungicideDue && <div className="plan-day-detail">MANUAL</div>}
+                      </div>
+                    </Tip>
                   );
                 })}
-              </ul>
+              </div>
             ) : <p className="muted">Loading…</p>}
           </div>
 
@@ -1006,6 +1053,12 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
 }
 
 // ---------- Farm detail: the one shared water tank + fertigation rig ----------
+function commandTone(type) {
+  if (type.includes('feed') || type.includes('mix') || type.includes('stir') || type.includes('filter')) return 'feed';
+  if (type.includes('fungicide')) return 'fungicide';
+  return 'water';
+}
+
 function FarmDetail({ farm, rooms, benches, socket, onChanged, onSelectRoom }) {
   const [history, setHistory] = useState({ tank: [], events: [] });
   const [maintenance, setMaintenance] = useState([]);
@@ -1015,12 +1068,14 @@ function FarmDetail({ farm, rooms, benches, socket, onChanged, onSelectRoom }) {
   const [viewMode, setViewMode] = useState('map');
   const [calibrations, setCalibrations] = useState([]);
   const [busyValveRoomId, setBusyValveRoomId] = useState(null);
+  const [commands, setCommands] = useState([]);
 
   async function openBranchValve(roomId) {
     setBusyValveRoomId(roomId);
     try {
       await api.command(roomId, 'mist_now');
       onChanged();
+      loadCommands();
     } catch (err) {
       alert(err.message);
     } finally {
@@ -1034,17 +1089,21 @@ function FarmDetail({ farm, rooms, benches, socket, onChanged, onSelectRoom }) {
   const loadCalibrations = useCallback(() => {
     api.tankCalibrations(farm.id).then(setCalibrations).catch(console.error);
   }, [farm.id]);
+  const loadCommands = useCallback(() => {
+    api.farmCommands(farm.id).then(setCommands).catch(console.error);
+  }, [farm.id]);
 
   useEffect(() => {
     api.farmHistory(farm.id).then(setHistory).catch(console.error);
     loadMaintenance();
     loadCalibrations();
+    loadCommands();
     setTankForm({
       autofillEnabled: farm.autofill_enabled,
       dechlorinateHours: farm.dechlorinate_hours,
       pumpFlowLpm: farm.pump_flow_lpm,
     });
-  }, [farm.id, loadMaintenance, loadCalibrations]);
+  }, [farm.id, loadMaintenance, loadCalibrations, loadCommands]);
 
   useEffect(() => {
     socket.emit('subscribe_farm', farm.id);
@@ -1088,10 +1147,7 @@ function FarmDetail({ farm, rooms, benches, socket, onChanged, onSelectRoom }) {
     }
   }
 
-  const anyRoomMisting = rooms.some((r) => r.activity === 'misting');
-  const tankActivity = anyRoomMisting ? 'misting' : farm.tank_activity;
   const online = isOnline(farm);
-  const fertRoom = rooms.find((r) => r.id === farm.fert_activity_room_id);
   const online_ = rooms.filter(isOnline).length;
 
   const activityFeed = [
@@ -1099,28 +1155,41 @@ function FarmDetail({ farm, rooms, benches, socket, onChanged, onSelectRoom }) {
     ...history.tank.map((t) => ({ kind: 'reading', ...t, at: t.recorded_at })),
   ].sort((a, b) => new Date(b.at) - new Date(a.at));
 
+  function scrollToId(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   return (
     <div className="unit-detail">
       <header className="unit-header">
         <div>
-          <div className="crumb muted small">Farm</div>
+          <div className="crumb muted small mono">Farm</div>
           <h2>🏡 {farm.name}</h2>
           <div className="row gap wrap">
             <Tip text={online ? "The tank controller synced in the last 90 seconds" : "The tank controller hasn't synced in over 90 seconds"}>
-              <span className={`badge ${online ? 'ok' : 'offline'}`}>{online ? 'Tank rig online' : 'Tank rig offline'}</span>
+              <span className={`badge ${online ? 'ok' : 'offline'}`}>
+                {online && <span className="pulse-dot" />}
+                {online ? 'Tank rig online' : 'Tank rig offline'}
+              </span>
             </Tip>
-            <span className="muted small">{rooms.length} room{rooms.length === 1 ? '' : 's'} · {online_}/{rooms.length} online</span>
+            <span className="muted small mono">{rooms.length} ROOM{rooms.length === 1 ? '' : 'S'} · {online_}/{rooms.length} ONLINE</span>
           </div>
         </div>
-        <Tip text="Jump to load-cell calibration and manual fill/drain controls for this farm's tanks">
-          <button className="ghost" onClick={() => document.getElementById('tank-calibration')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-            ⚖️ Calibration &amp; manual controls
-          </button>
-        </Tip>
+        <div className="row gap">
+          <Tip text="Jump to load-cell calibration and manual fill/drain controls for this farm's tanks">
+            <button className="ghost" onClick={() => scrollToId('tank-calibration')}>⚖️ Calibrate tanks</button>
+          </Tip>
+          <Tip text="Recent commands sent to this farm's tank controller and its rooms">
+            <button className="ghost" onClick={() => scrollToId('command-history')}>🕘 Command history</button>
+          </Tip>
+        </div>
       </header>
 
-      <section className="card" style={{ marginBottom: 16 }}>
-        <h3>Live plumbing</h3>
+      <section className="card farm-hero" style={{ marginBottom: 16 }}>
+        <div className="row wrap gap" style={{ justifyContent: 'space-between', marginBottom: 4 }}>
+          <h3 style={{ margin: 0 }}>Water &amp; fertigation — live</h3>
+          <span className="muted small mono">EVERY ELEMENT DRIVEN BY REPORTED STATE · GREY = NO DATA</span>
+        </div>
         <p className="muted small">
           Tanks, pipes, valves, limit switches and nozzles for this farm, animated from real activity —
           not decorative. Fill levels use your saved calibration where available.
@@ -1128,18 +1197,20 @@ function FarmDetail({ farm, rooms, benches, socket, onChanged, onSelectRoom }) {
         <FarmPipeline farm={farm} rooms={rooms} calibrations={calibrations} />
       </section>
 
-      <section className="stat-row">
-        <Stat label="Water Tank" value="" tip="One shared tank for the whole farm — every room's misting draws from it">
-          <WaterTank waterLow={farm.water_low} waterFull={farm.water_full} activity={tankActivity} />
-        </Stat>
-        <Stat label="Fertilizer System" value="" tip="One shared mixing rig for the whole farm — services whichever room's feed day it is, one at a time">
-          <FertilizerRig activity={farm.fert_activity} />
-          {fertRoom && (
-            <div className="muted small" style={{ marginTop: 4 }}>
-              for {fertRoom.name}{farm.fert_activity_source ? ` · ${TANK_LABELS[farm.fert_activity_source]?.label || farm.fert_activity_source}` : ''}
-            </div>
-          )}
-        </Stat>
+      <section id="command-history" className="card" style={{ marginBottom: 16 }}>
+        <h3>Command history</h3>
+        <p className="muted small">Every command sent to this farm's tank controller and its rooms — most recent first.</p>
+        <ul className="event-log">
+          {commands.slice(0, 40).map((c) => (
+            <li key={c.id}>
+              <span className="muted small mono">{new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className={`event-type event-type--${commandTone(c.type)}`}>{c.type.replace(/_/g, ' ')}</span>
+              {c.room_name && <span className="muted small">{c.room_name}</span>}
+              <span className="muted small mono command-status">{c.status}{c.status === 'delivered' && c.delivered_at ? ` · ${timeAgo(c.delivered_at)}` : ''}</span>
+            </li>
+          ))}
+          {commands.length === 0 && <p className="muted small">No commands sent yet.</p>}
+        </ul>
       </section>
 
       <section id="tank-calibration" className="card" style={{ marginTop: 16 }}>
@@ -1161,6 +1232,7 @@ function FarmDetail({ farm, rooms, benches, socket, onChanged, onSelectRoom }) {
               }}
               onCommand={async (type) => {
                 await api.farmCommand(farm.id, `${type}_${c.tank_key}`);
+                loadCommands();
               }} />
           ))}
         </div>

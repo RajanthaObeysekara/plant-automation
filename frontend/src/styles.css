@@ -1,44 +1,36 @@
+/* Fixed dark "control room" palette — a monitoring dashboard for equipment
+   that runs 24/7 doesn't really have a light-mode use case, so this is the
+   only theme now rather than following prefers-color-scheme. Values match
+   the approved design pass 1:1 (see docs/design/Plant Automation Rework —
+   Claude Design canvas), not derived/approximated. */
 :root {
-  --bg: #f7f8f4;
-  --surface: #ffffff;
-  --surface-2: #eef1ea;
-  --ink: #1e2a20;
-  --muted: #5c6b5e;
-  --faint: #8b978c;
-  --line: #d8ded2;
-  --line-strong: #c3cdbc;
-  --water: #1c6e8c;
-  --water-ink: #0f4f66;
-  --fert: #b06a1e;
-  --fert-ink: #8a5217;
-  --good: #3f7d4a;
-  --warn: #b06a1e;
-  --crit: #a83a2e;
+  --bg: #0b0d0f;
+  --surface: #14181c;
+  --surface-2: #12161a;
+  --surface-sunken: #0f1215;
+  --ink: #e8edf1;
+  --muted: rgba(232, 237, 241, 0.65);
+  --faint: rgba(232, 237, 241, 0.5);
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --water: #4fa8d8;
+  --water-ink: #8dc9e8;
+  --feed: #46c08a;
+  --feed-ink: #7fd8ae;
+  --fungicide: #9b7fd4;
+  --fungicide-ink: #bda6ea;
+  /* Deprecated alias — old markup/JS referencing --fert still resolves to
+     the feed color rather than silently breaking; new code should use
+     --feed or --fungicide explicitly since they're no longer the same hue. */
+  --fert: var(--feed);
+  --fert-ink: var(--feed-ink);
+  --good: #46c08a;
+  --warn: #d9a441;
+  --warn-ink: #e5bd72;
+  --crit: #d4614f;
   --accent: var(--water);
-  --shadow-sm: 0 1px 2px rgba(30,42,32,0.05), 0 2px 8px rgba(30,42,32,0.04);
-  --shadow-md: 0 2px 4px rgba(30,42,32,0.06), 0 8px 24px rgba(30,42,32,0.08);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #12160f;
-    --surface: #181d15;
-    --surface-2: #1e2419;
-    --ink: #e8ece3;
-    --muted: #a2ae9b;
-    --faint: #6d7a6a;
-    --line: #2b3226;
-    --line-strong: #3a4335;
-    --water: #5fc1e8;
-    --water-ink: #8fd6f2;
-    --fert: #e3a455;
-    --fert-ink: #eebd7d;
-    --good: #7bc487;
-    --warn: #e3a455;
-    --crit: #e08579;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.2);
-    --shadow-md: 0 2px 4px rgba(0,0,0,0.3), 0 12px 28px rgba(0,0,0,0.35);
-  }
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.3), 0 12px 28px rgba(0,0,0,0.35);
 }
 
 * { box-sizing: border-box; }
@@ -118,17 +110,18 @@ input[type="checkbox"] { width: auto; }
   font-size: 12px;
 }
 
-.tank-widget { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tank-widget { display: flex; flex-direction: row; align-items: center; gap: 14px; }
 .tank-widget.compact { gap: 0; }
 .tank-label { font-size: 11px; font-weight: 600; text-align: center; max-width: 110px; line-height: 1.25; }
-.tank-wave {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: tank-wave-move 3.2s linear infinite;
-}
-@keyframes tank-wave-move {
-  from { transform: translateX(-80px); }
-  to   { transform: translateX(0px); }
+.tank-legend { display: flex; flex-direction: column; gap: 9px; flex: 1; }
+.tank-legend-row { display: flex; align-items: center; gap: 7px; font: 400 11px "IBM Plex Mono", monospace; color: var(--muted); }
+.tank-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); flex: none; }
+.tank-dot.on { background: var(--water); }
+.tank-legend-note { font: 400 10px "IBM Plex Mono", monospace; color: var(--faint); line-height: 1.5; margin-top: 2px; }
+.tank-ripple { animation: tank-ripple-move 2.6s ease-in-out infinite; }
+@keyframes tank-ripple-move {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
 }
 .tank-alert-dot { animation: tank-alert-pulse 1s ease-in-out infinite; }
 @keyframes tank-alert-pulse {
@@ -136,7 +129,7 @@ input[type="checkbox"] { width: auto; }
   50%      { opacity: 0.35; r: 5.5; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .tank-wave { animation: none; }
+  .tank-ripple { animation: none; }
   .tank-alert-dot { animation: none; }
 }
 
@@ -250,6 +243,40 @@ input[type="checkbox"] { width: auto; }
 .dot.offline { background: var(--faint); }
 
 .main { flex: 1; padding: 24px 28px; overflow-y: auto; }
+
+/* ---------- Verdict strip — "does this need me?" before any card does ---------- */
+.verdict-strip {
+  display: flex; align-items: stretch; gap: 0;
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  margin-bottom: 14px; background: var(--surface-2);
+}
+.verdict-strip--good { background: linear-gradient(180deg, color-mix(in srgb, var(--feed) 10%, var(--surface-2)), var(--surface-2)); }
+.verdict-strip--warn { background: linear-gradient(180deg, color-mix(in srgb, var(--warn) 10%, var(--surface-2)), var(--surface-2)); }
+.verdict-strip--crit { background: linear-gradient(180deg, color-mix(in srgb, var(--crit) 12%, var(--surface-2)), var(--surface-2)); }
+.verdict-main { flex: 1; padding: 20px 24px; min-width: 0; }
+.verdict-title { display: flex; align-items: center; gap: 11px; margin-top: 8px; font: 600 24px "IBM Plex Sans", sans-serif; color: var(--ink); }
+.verdict-detail { font-size: 13px; color: var(--muted); margin-top: 7px; max-width: 62ch; }
+.verdict-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.verdict-dot--good { background: var(--feed); box-shadow: 0 0 0 4px color-mix(in srgb, var(--feed) 18%, transparent); animation: verdict-breathe 2.4s infinite; }
+.verdict-dot--warn { background: var(--warn); }
+.verdict-dot--crit { background: var(--crit); }
+@keyframes verdict-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .verdict-dot--good { animation: none; } }
+.verdict-sync {
+  width: 220px; flex: none; padding: 18px 22px; display: flex; flex-direction: column; justify-content: center; gap: 7px;
+  border-left: 1px solid var(--line);
+}
+.verdict-sync-meta { font-size: 10.5px; line-height: 1.6; }
+.verdict-actions {
+  width: 210px; flex: none; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; justify-content: center;
+  border-left: 1px solid var(--line);
+}
+.verdict-actions button { width: 100%; }
+@media (max-width: 900px) {
+  .verdict-strip { flex-direction: column; }
+  .verdict-sync, .verdict-actions { width: auto; border-left: none; border-top: 1px solid var(--line); }
+}
+
 .unit-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
 .unit-header h2 { font-size: 21px; letter-spacing: -0.01em; }
 .crumb { margin-bottom: 3px; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.01em; }
@@ -272,7 +299,7 @@ input[type="checkbox"] { width: auto; }
 .badge.idle { color: var(--muted); }
 .badge.live { border-color: var(--water); color: var(--water-ink); background: color-mix(in srgb, var(--water) 10%, transparent); }
 .badge.live.feeding, .badge.live.mixing, .badge.live.stirring, .badge.live.filtering { border-color: var(--fert); color: var(--fert-ink); background: color-mix(in srgb, var(--fert) 10%, transparent); }
-.badge.live.fungicide { border-color: var(--warn); color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.badge.live.fungicide { border-color: var(--fungicide); color: var(--fungicide-ink); background: color-mix(in srgb, var(--fungicide) 10%, transparent); }
 .badge.live.filling { border-color: var(--water); color: var(--water-ink); background: color-mix(in srgb, var(--water) 10%, transparent); }
 .badge.live.dechlorinating { border-color: var(--warn); color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
 .badge.live.overflow { border-color: var(--crit); color: var(--crit); background: color-mix(in srgb, var(--crit) 14%, transparent); font-weight: 700; }
@@ -312,11 +339,16 @@ input[type="checkbox"] { width: auto; }
 .upcoming-list li:last-child { border-bottom: none; padding-bottom: 0; }
 .upcoming-label { color: var(--muted); }
 
-.plan-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.plan-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 7px; font-size: 13px; }
-.plan-list li.today { background: var(--surface-2); font-weight: 600; }
-.plan-date { color: var(--ink); }
-.plan-markers { display: flex; gap: 6px; align-items: center; }
+.plan-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 12px; }
+.plan-day { border: 1px solid var(--line); border-radius: 8px; padding: 10px; height: 100%; }
+.plan-day-label { font: 500 10px "IBM Plex Mono", monospace; color: var(--muted); }
+.plan-day-kind { font: 400 12px "IBM Plex Sans", sans-serif; color: var(--muted); margin-top: 8px; }
+.plan-day-detail { font: 400 10px "IBM Plex Mono", monospace; color: var(--muted); margin-top: 3px; }
+.plan-day--feed { border-color: color-mix(in srgb, var(--feed) 35%, transparent); background: color-mix(in srgb, var(--feed) 9%, transparent); }
+.plan-day--feed .plan-day-kind { font-weight: 600; color: var(--feed-ink); }
+.plan-day--fungicide { border: 1px dashed color-mix(in srgb, var(--fungicide) 50%, transparent); background: color-mix(in srgb, var(--fungicide) 8%, transparent); }
+.plan-day--fungicide .plan-day-kind { font-weight: 600; color: var(--fungicide-ink); }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: repeat(4, 1fr); } }
 
 .maintenance-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .maintenance-list li {
@@ -344,6 +376,18 @@ input[type="checkbox"] { width: auto; }
 .event-type.maintenance_done { color: var(--good); }
 .event-type.reading { color: var(--muted); background: none; }
 .reading-row { opacity: 0.7; font-size: 12.5px; }
+
+.event-type--water { color: var(--water-ink); }
+.event-type--feed { color: var(--feed-ink); }
+.event-type--fungicide { color: var(--fungicide-ink); }
+.command-status { margin-left: auto; }
+
+/* ---------- Farm detail hero: the plumbing schematic IS the page ---------- */
+.farm-hero {
+  background: radial-gradient(120% 90% at 30% 0%, color-mix(in srgb, var(--water) 6%, var(--surface)), var(--surface));
+}
+.farm-hero .farm-pipeline-wrap { background: var(--bg); padding: 16px; }
+.farm-hero .farm-pipeline-svg { min-height: 360px; }
 
 /* ---------- Live farm pipeline animation ---------- */
 .farm-pipeline-wrap {
