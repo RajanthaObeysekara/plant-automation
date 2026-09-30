@@ -100,13 +100,17 @@ void handleSerialCommands() {
       Serial.println("[main] rebooting");
       delay(100);
       ESP.restart();
+    } else if (line == "wifi") {
+      // RSSI: > -60 good, -60..-70 ok, < -75 weak (check the -32U's external antenna)
+      Serial.printf("[wifi] %s, SSID=%s, RSSI=%ddBm, IP=%s\n", WiFi.status() == WL_CONNECTED ? "connected" : "DISCONNECTED",
+                    WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.localIP().toString().c_str());
     } else if (line == "version") {
       Serial.printf("[main] firmware v%s\n", Ota::version());
     } else if (line == "ota check") {
       Ota::requestCheck(true);
       Serial.println("[ota] check requested");
     } else if (line.length()) {
-      Serial.println("[serial] unknown command: " + line + " (try: tare, cal <grams>, scale <counts/g>, weight, hxreset, secret show, version, ota check, reboot)");
+      Serial.println("[serial] unknown command: " + line + " (try: tare, cal <grams>, scale <counts/g>, weight, hxreset, secret show, wifi, version, ota check, reboot)");
     }
     line = "";
   }
@@ -525,7 +529,7 @@ void setup() {
   }
   deviceKey = Secrets::deviceKey();
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("[wifi] connected, IP=%s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("[wifi] connected, IP=%s, RSSI=%ddBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
     RemoteLog::add("info", "wifi connected, IP=" + WiFi.localIP().toString() + ", RSSI=" + String(WiFi.RSSI()) + "dBm");
   } else {
     // Restarting is simpler than looping forever in setup() and gives the

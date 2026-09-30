@@ -103,15 +103,7 @@ bool fetchManifest(Manifest &m) {
 bool install(const Manifest &m, DisplayDriver &oled) {
   String head = String(runningVersion()) + " -> " + m.version;
   oled.showUpdate("DOWNLOADING", head, String(m.size / 1024) + " KB", 0);
-  WiFiClientSecure tls; WiFiClient plain; HTTPClient http;
-  if (!httpBegin(http, tls, plain, m.url) || http.GET() != 200) {
-    http.end();
-    oled.showUpdate("UPDATE FAILED", "download error", "kept " + String(runningVersion()), -1, true);
-    log("error", "download failed");
-    return false;
-  }
   if (!Update.begin(m.size, U_FLASH)) {
-    http.end();
     oled.showUpdate("UPDATE FAILED", "no space", "kept " + String(runningVersion()), -1, true);
     log("error", String("Update.begin failed: ") + Update.errorString());
     return false;
@@ -121,30 +113,54 @@ bool install(const Manifest &m, DisplayDriver &oled) {
   mbedtls_md_setup(&md, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
   mbedtls_md_starts(&md);
 
-  WiFiClient *stream = http.getStreamPtr();
   // Heap, not static: only needed during an install, so it shouldn't hold
   // 2KB of RAM for the device's whole uptime.
   std::unique_ptr<uint8_t[]> bufOwner(new uint8_t[2048]);
   uint8_t *buf = bufOwner.get();
   const size_t bufSize = 2048;
   int done = 0, lastPct = -1;
-  unsigned long lastByteAt = millis();
-  while (done < m.size && millis() - lastByteAt < 20000) {
-    size_t avail = stream->available();
-    if (!avail) { delay(2); continue; }
-    int n = stream->readBytes(buf, min(avail, bufSize));
-    if (n <= 0) continue;
-    lastByteAt = millis();
-    mbedtls_md_update(&md, buf, n);
-    if (Update.write(buf, n) != (size_t)n) break;
-    done += n;
-    int pct = (int)((int64_t)done * 100 / m.size);
-    if (pct != lastPct) {
-      lastPct = pct;
-      oled.showUpdate("DOWNLOADING", head, String(done / 1024) + " / " + String(m.size / 1024) + " KB", pct);
+  bool writeError = false;
+
+  // Each attempt continues where the last one stopped (Range request), so a
+  // flaky link only costs the bytes in flight, not the whole download.
+  for (int attempt = 1; attempt <= OTA_DOWNLOAD_ATTEMPTS && done < m.size && !writeError; attempt++) {
+    if (attempt > 1) {
+      log("warn", "download interrupted at " + String(done / 1024) + " KB - resuming (" + String(attempt) + "/" + String(OTA_DOWNLOAD_ATTEMPTS) + ")");
+      oled.showUpdate("DOWNLOADING", head, "reconnecting " + String(attempt) + "/" + String(OTA_DOWNLOAD_ATTEMPTS), lastPct);
+      delay(3000);
     }
+    WiFiClientSecure tls; WiFiClient plain; HTTPClient http;
+    if (!httpBegin(http, tls, plain, m.url)) continue;
+    if (done > 0) http.addHeader("Range", "bytes=" + String(done) + "-");
+    int code = http.GET();
+    if (!((done == 0 && code == 200) || (done > 0 && code == 206))) {
+      log("warn", "download HTTP " + String(code));
+      http.end();
+      continue;
+    }
+    WiFiClient *stream = http.getStreamPtr();
+    unsigned long lastByteAt = millis();
+    while (done < m.size && millis() - lastByteAt < OTA_STALL_MS) {
+      size_t avail = stream->available();
+      if (!avail) {
+        if (!stream->connected()) break;
+        delay(2);
+        continue;
+      }
+      int n = stream->readBytes(buf, min(avail, bufSize));
+      if (n <= 0) continue;
+      lastByteAt = millis();
+      mbedtls_md_update(&md, buf, n);
+      if (Update.write(buf, n) != (size_t)n) { writeError = true; break; }
+      done += n;
+      int pct = (int)((int64_t)done * 100 / m.size);
+      if (pct != lastPct) {
+        lastPct = pct;
+        oled.showUpdate("DOWNLOADING", head, String(done / 1024) + " / " + String(m.size / 1024) + " KB", pct);
+      }
+    }
+    http.end();
   }
-  http.end();
   uint8_t hash[32];
   mbedtls_md_finish(&md, hash);
   mbedtls_md_free(&md);
@@ -155,6 +171,7 @@ bool install(const Manifest &m, DisplayDriver &oled) {
     log("error", "rejected v" + m.version + ": " + why);
     return false;
   };
+  if (writeError) return fail("flash write error");
   if (done != m.size) return fail("download incomplete");
   oled.showUpdate("VERIFYING", head, "checking signature", 100);
   if (toHex(hash, 32) != m.sha256) return fail("checksum mismatch");
@@ -226,7 +243,10 @@ void loop(bool wifiUp, bool idle, DisplayDriver &oled, CloudClient &cloud, const
   nextCheckAt = now + OTA_CHECK_INTERVAL_MS;
 
   Manifest m;
-  if (!fetchManifest(m)) return;
+  if (!fetchManifest(m)) {
+    nextCheckAt = now + OTA_FAIL_RETRY_MS;
+    return;
+  }
   String current = runningVersion();
   Preferences p; p.begin(NS, false); String bad = p.isKey("bad") ? p.getString("bad", "") : ""; p.end();
   bool dev = current == FW_VERSION_DEV;
