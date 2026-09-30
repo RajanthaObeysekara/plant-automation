@@ -7,6 +7,6 @@
 // the NEW public key before the old key is retired.
 static const char OTA_PUBLIC_KEY_PEM[] =
   "-----BEGIN PUBLIC KEY-----\n"
-  "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyzY4WAvYQtpx1EsLCMxGkTk09O/T\n"
-  "4LzUapQVWeue5bKzrgl5ULo/MyYvTEluIrixderIgSo/kjnn1BAIQOXX5Q==\n"
+  "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE24R5VUJcbPl9qm7Ct9Y8UckFaX5v\n"
+  "JQkQ5LHRL9Rf1E87n9flaz3bmzZgXFXTC2fzVCzFtVevABEluOm9ZxxorQ==\n"
   "-----END PUBLIC KEY-----\n";

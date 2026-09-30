@@ -58,10 +58,21 @@ jobs:
         run: pio run -e esp32dev
 
       - name: Refuse to publish secrets
+        env:
+          OTA_SIGNING_KEY: ${{ secrets.OTA_SIGNING_KEY }}
         run: |
-          # The image is public - fail loudly if anything credential-like got compiled in.
-          if strings .pio/build/esp32dev/firmware.bin | grep -Eiq 'wifi_pass=|mqtt_pass=|BEGIN (EC )?PRIVATE KEY'; then
-            echo "::error::firmware.bin appears to contain secrets"; exit 1
+          # The image is public - fail if real key material got compiled in.
+          # (The bare "-----BEGIN ... PRIVATE KEY-----" labels are always there:
+          # mbedTLS's PEM parser carries them as strings, so match content, not labels.)
+          BIN=.pio/build/esp32dev/firmware.bin
+          # Only the first base64 line holds the private scalar - the later lines
+          # are the public key, which IS legitimately compiled in (OtaPublicKey.h).
+          secret_line=$(printf '%s\n' "$OTA_SIGNING_KEY" | grep -v -- '-----' | head -n1)
+          if [ -n "$secret_line" ] && grep -aqF -- "$secret_line" "$BIN"; then
+            echo "::error::signing key found in firmware.bin"; exit 1
+          fi
+          if strings "$BIN" | grep -Eiq 'wifi_pass=|mqtt_pass='; then
+            echo "::error::firmware.bin appears to contain credentials"; exit 1
           fi
 
       - name: Sign and write manifest
