@@ -1,0 +1,27 @@
+refs,part,qty,LCSC / EasyEDA
+"U1A,U1B","Female header 1x19 2.54mm, 8.5mm tall (ESP32)",2,C319202
+U2,Female header 1x7 2.54mm (OLED),1,C9811 (cut from 1x40)
+"U3A,U3B",Female header 1x6 2.54mm (595 in/cascade),2,C9811 (cut from 1x40)
+U3C,Female header 1x24 2.54mm (595 outputs),1,C9811 (cut from 1x40)
+"U4A,U5A",Female header 1x4 2.54mm,2,C9811 (cut from 1x40)
+U4B,Female header 1x6 2.54mm (HX711 bridge),1,C9811 (cut from 1x40)
+U5B,Female header 1x2 2.54mm (rain plate),1,C9811 (cut from 1x40)
+"J1,J2",Screw terminal KF301-5.0-3P,2,C474882
+"J3-J13,J15",Screw terminal KF301-5.0-2P (17A),12,C474881
+J14,Screw terminal 4-pos = 2x KF301-5.0-2P side by side,2,C474881
+J20,Box header 2x10 2.54mm (IDC),1,C3405
+(cable),Relay cable: 2x10 IDC plug for J20 + 30cm 20-way 1.27mm ribbon + Dupont female ends,1,C2977597 (plug); ribbon/Dupont locally
+"J16,J21",Male pin header 1x4 / 1x8 2.54mm,2,C2337 (cut from 1x40)
+F1,"PTC resettable fuse, radial, 3A hold, >=6V",1,C369115
+F2,5x20mm fuse clip (2 per fuse) + 10A slow-blow 5x20 fuse,2,C3130
+F3-F8,"PTC resettable fuse, radial, 1.1A hold, >=16V",6,C369100
+D1,TVS P6KE6.8A DO-15 (5V rail),1,C20623822
+D2,TVS P6KE18A DO-15 (12V rail),1,C284087
+"D3,D4",LED 3mm green (5V) / red (12V),2,C20613324 green / C20613323 red
+R1-R3,Resistor 10k 1/4W axial,3,C58673
+R4,Resistor 1k 1/4W axial,1,C58674
+R5,Resistor 2.2k 1/4W axial,1,C58682
+C1,"Electrolytic 470uF 10V, 8x11.5mm, 3.5mm pitch",1,C530584
+"C2,C3","Ceramic 100nF 50V, 5.08mm pitch",2,C5291296
+(off-board),"1N4007 flyback diode, one across each pump/valve coil",7,C2457
+H1-H5,M3 x 15 standoff (lid to PCB) + M3 x 6 screws,5,hardware store

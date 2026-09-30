@@ -22,6 +22,12 @@ const POLL_JITTER_MS = Number(process.env.POLL_JITTER_MS) || 10000;
 // full sensor+config sync, and a button that visibly does nothing for up to
 // 30s reads as broken even though it was always going to work eventually.
 const COMMAND_POLL_MS = Number(process.env.COMMAND_POLL_MS) || 3000;
+// Comma-separated device_keys (room and/or farm) the simulator should never
+// touch — for a room/farm a real physical unit is now driving, so its data
+// isn't fought over by a fake controller posting on top of it.
+const EXCLUDE_DEVICE_KEYS = new Set(
+  (process.env.EXCLUDE_DEVICE_KEYS || '').split(',').map((k) => k.trim()).filter(Boolean)
+);
 const MIST_DURATION_SECONDS = Number(process.env.MIST_DURATION_SECONDS) || 20;
 const MIX_WAIT_MS = Number(process.env.MIX_WAIT_MS) || 3000;
 const STIR_WAIT_MS = Number(process.env.STIR_WAIT_MS) || 2000;
@@ -568,6 +574,7 @@ async function discoverAndStart() {
 
   let startedFarms = 0;
   for (const farm of farms.rows) {
+    if (EXCLUDE_DEVICE_KEYS.has(farm.device_key)) continue;
     if (runningFarms.has(farm.device_key)) continue;
     runningFarms.add(farm.device_key);
     runFarm(farm);
@@ -576,6 +583,7 @@ async function discoverAndStart() {
 
   let startedRooms = 0;
   for (const room of rooms.rows) {
+    if (EXCLUDE_DEVICE_KEYS.has(room.device_key)) continue;
     if (runningRooms.has(room.device_key)) continue;
     if (!farmHandles.has(room.farm_id)) continue; // farm loop not registered yet — pick it up next discovery pass
     runningRooms.add(room.device_key);
@@ -583,7 +591,8 @@ async function discoverAndStart() {
     startedRooms += 1;
   }
 
-  console.log(`[simulator] ${startedFarms} farm(s) + ${startedRooms} room(s) newly started (${farms.rows.length} farms, ${rooms.rows.length} rooms total)`);
+  const excludedCount = EXCLUDE_DEVICE_KEYS.size;
+  console.log(`[simulator] ${startedFarms} farm(s) + ${startedRooms} room(s) newly started (${farms.rows.length} farms, ${rooms.rows.length} rooms total${excludedCount ? `, ${excludedCount} excluded for real hardware` : ''})`);
 }
 
 async function main() {

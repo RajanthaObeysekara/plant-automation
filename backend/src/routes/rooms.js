@@ -2,6 +2,7 @@ const express = require('express');
 const { pool } = require('../db');
 const { requireUser } = require('../auth');
 const { buildSevenDayPlan } = require('../planner');
+const { publishConfigForRoomId, publishCommandForRoomId } = require('../mqtt');
 
 function buildRoomsRouter(io) {
   const router = express.Router();
@@ -126,6 +127,7 @@ function buildRoomsRouter(io) {
       ]
     );
     if (!rows[0]) return res.status(404).json({ error: 'no schedule for this room' });
+    publishConfigForRoomId(req.params.id).catch((err) => console.error('[mqtt] config push failed:', err.message));
     res.json(rows[0]);
   });
 
@@ -145,6 +147,18 @@ function buildRoomsRouter(io) {
       telemetry: telemetry.rows.reverse(),
       events: events.rows.reverse(),
     });
+  });
+
+  router.get('/:id/logs', requireUser, async (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 200, 500);
+    // A whole upload batch shares one INSERT (and so one now()), so
+    // logged_at alone ties within a batch — id (monotonic with insert
+    // order) breaks the tie deterministically.
+    const { rows } = await pool.query(
+      'SELECT id, level, message, logged_at FROM device_logs WHERE room_id = $1 ORDER BY logged_at DESC, id DESC LIMIT $2',
+      [req.params.id, limit]
+    );
+    res.json(rows.reverse());
   });
 
   router.get('/:id/history.csv', requireUser, async (req, res) => {
@@ -185,8 +199,16 @@ function buildRoomsRouter(io) {
         [req.params.id]
       );
     }
+    // pause/resume/skip_feed changed schedule_version — push the updated
+    // config immediately (retained) rather than waiting for the device's
+    // own periodic sync. mist_now has no config change, just the command
+    // push below.
+    if (type !== 'mist_now') {
+      publishConfigForRoomId(req.params.id).catch((err) => console.error('[mqtt] config push failed:', err.message));
+    }
 
     const { rows } = await pool.query('INSERT INTO commands (room_id, type) VALUES ($1,$2) RETURNING *', [req.params.id, type]);
+    publishCommandForRoomId(req.params.id, { type }).catch((err) => console.error('[mqtt] command push failed:', err.message));
     res.status(201).json(rows[0]);
   });
 

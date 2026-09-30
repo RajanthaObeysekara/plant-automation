@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="258.00mm" height="72.00mm" viewBox="0 0 258.00 72.00">
+<!-- RED = cut through, BLUE = engrave/score only. 1 unit = 1 mm. -->
+<polygon points="1.000,71.000 257.000,71.000 257.000,1.000 63.000,1.000 63.000,9.900 49.000,9.900 49.000,1.000 1.000,1.000" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<text x="56.000" y="15.900" font-family="Arial" font-size="3" text-anchor="middle" fill="#0000ff">USB</text>
+</svg>

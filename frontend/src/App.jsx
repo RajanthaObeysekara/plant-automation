@@ -189,7 +189,15 @@ function Shell({ onLogout }) {
   useEffect(() => {
     function onRoomTelemetry(row) {
       setRooms((prev) => prev.map((r) => (r.id === row.room_id
-        ? { ...r, humidity: row.humidity, temp_c: row.temp_c, raining: row.raining, last_reading_at: row.recorded_at, last_seen_at: row.recorded_at }
+        ? {
+            ...r, humidity: row.humidity, temp_c: row.temp_c, raining: row.raining,
+            // Only a real 2-DHT22 unit ever sends these — stay undefined
+            // (and the extra per-sensor line just doesn't render) for
+            // every simulated single-sensor room.
+            humidity_sensor1: row.humidity_sensor1, temp_c_sensor1: row.temp_c_sensor1,
+            humidity_sensor2: row.humidity_sensor2, temp_c_sensor2: row.temp_c_sensor2,
+            last_reading_at: row.recorded_at, last_seen_at: row.recorded_at,
+          }
         : r)));
     }
     function onRoomStatus(row) {
@@ -218,14 +226,26 @@ function Shell({ onLogout }) {
     function onBenchPosition({ benchId, posX, posY }) {
       setBenches((prev) => prev.map((b) => (b.id === benchId ? { ...b, pos_x: posX, pos_y: posY } : b)));
     }
+    // Room/farm membership lives server-side per socket connection — a
+    // backend restart (or any transport drop) wipes it, and socket.io-client
+    // auto-reconnects the transport without us asking, but that doesn't
+    // rejoin those rooms on its own. Without re-subscribing on 'connect',
+    // the dashboard silently stops receiving live updates (telemetry, tank
+    // state, everything) after any backend restart until a manual page
+    // refresh — resubscribing here covers both the initial connect and
+    // every reconnect after.
+    function subscribeAll() {
+      rooms.forEach((r) => socket.emit('subscribe_room', r.id));
+      farms.forEach((f) => socket.emit('subscribe_farm', f.id));
+    }
     socket.on('room_telemetry', onRoomTelemetry);
     socket.on('room_status', onRoomStatus);
     socket.on('farm_telemetry', onFarmTelemetry);
     socket.on('farm_tank_status', onFarmTankStatus);
     socket.on('farm_fert_status', onFarmFertStatus);
     socket.on('bench_position', onBenchPosition);
-    rooms.forEach((r) => socket.emit('subscribe_room', r.id));
-    farms.forEach((f) => socket.emit('subscribe_farm', f.id));
+    socket.on('connect', subscribeAll);
+    subscribeAll();
     return () => {
       socket.off('room_telemetry', onRoomTelemetry);
       socket.off('room_status', onRoomStatus);
@@ -233,6 +253,7 @@ function Shell({ onLogout }) {
       socket.off('farm_tank_status', onFarmTankStatus);
       socket.off('farm_fert_status', onFarmFertStatus);
       socket.off('bench_position', onBenchPosition);
+      socket.off('connect', subscribeAll);
     };
   }, [socket, rooms.map((r) => r.id).join(','), farms.map((f) => f.id).join(',')]);
 
@@ -247,12 +268,15 @@ function Shell({ onLogout }) {
         <nav>
           <button className={`tab ${view === 'units' ? 'active' : ''}`} onClick={() => setView('units')}>Farms</button>
           <button className={`tab ${view === 'templates' ? 'active' : ''}`} onClick={() => setView('templates')}>Variety templates</button>
+          <button className={`tab ${view === 'mqtt' ? 'active' : ''}`} onClick={() => setView('mqtt')}>MQTT Monitor</button>
         </nav>
         <Tip text="Sign out of this session"><button className="ghost" onClick={onLogout}>Sign out</button></Tip>
       </div>
 
       {view === 'templates' ? (
         <main className="main"><TemplatesPage /></main>
+      ) : view === 'mqtt' ? (
+        <main className="main"><MqttMonitorPage socket={socket} rooms={rooms} /></main>
       ) : (
         <div className="units-view">
           <aside className="sidebar">
@@ -502,6 +526,93 @@ function TemplatesPage() {
   );
 }
 
+// ---------- MQTT Monitor: every topic, both directions, raw payloads ----------
+function MqttMonitorPage({ socket, rooms }) {
+  const [messages, setMessages] = useState([]);
+  const [directionFilter, setDirectionFilter] = useState('all');
+  const [roomFilter, setRoomFilter] = useState('all');
+  const [paused, setPaused] = useState(false);
+  const consoleRef = useRef(null);
+
+  useEffect(() => {
+    api.mqttMessages().then(setMessages).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    socket.emit('subscribe_mqtt_monitor');
+    function onMessage(row) {
+      setMessages((prev) => {
+        if (paused) return prev; // still subscribed — just not appending while paused, so nothing's lost from the DB history once resumed
+        return [...prev.slice(-499), row];
+      });
+    }
+    socket.on('mqtt_message', onMessage);
+    return () => socket.off('mqtt_message', onMessage);
+  }, [socket, paused]);
+
+  useEffect(() => {
+    if (!paused && consoleRef.current) consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+  }, [messages, paused]);
+
+  const roomNameById = useMemo(() => Object.fromEntries(rooms.map((r) => [r.id, r.name])), [rooms]);
+
+  const filtered = messages.filter((m) => {
+    if (directionFilter !== 'all' && m.direction !== directionFilter) return false;
+    if (roomFilter !== 'all' && String(m.room_id) !== roomFilter) return false;
+    return true;
+  });
+
+  function prettyPayload(payload) {
+    if (!payload) return '';
+    try {
+      return JSON.stringify(JSON.parse(payload), null, 2);
+    } catch {
+      return payload;
+    }
+  }
+
+  return (
+    <div>
+      <h2>MQTT Monitor</h2>
+      <p className="muted">
+        Every message crossing the broker, both directions, raw — device telemetry/status/events/logs coming in,
+        config/commands going out. Not curated like a room's own Device Console; this is the wire itself.
+      </p>
+      <div className="row gap" style={{ margin: '12px 0' }}>
+        <select value={directionFilter} onChange={(e) => setDirectionFilter(e.target.value)}>
+          <option value="all">All directions</option>
+          <option value="in">↑ Device → backend</option>
+          <option value="out">↓ Backend → device</option>
+        </select>
+        <select value={roomFilter} onChange={(e) => setRoomFilter(e.target.value)}>
+          <option value="all">All rooms</option>
+          {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>
+        <button className="ghost small-btn" onClick={() => setPaused((p) => !p)}>
+          {paused ? '▶ Resume' : '⏸ Pause'}
+        </button>
+        <span className="muted small" style={{ alignSelf: 'center' }}>{filtered.length} messages</span>
+      </div>
+      <div className="card">
+        <div className="device-console mqtt-console" ref={consoleRef}>
+          {filtered.map((m) => (
+            <div key={m.id} className={`mqtt-console-row ${m.direction}`}>
+              <div className="mqtt-console-meta">
+                <span className="ts">{new Date(m.created_at).toLocaleTimeString()}</span>
+                <span className={`mqtt-dir ${m.direction}`}>{m.direction === 'in' ? '↑ IN' : '↓ OUT'}</span>
+                <span className="mqtt-topic">{m.topic}</span>
+                {m.room_id && <span className="muted small">{roomNameById[m.room_id] || m.room_name || `room ${m.room_id}`}</span>}
+              </div>
+              <pre className="mqtt-payload">{prettyPayload(m.payload)}</pre>
+            </div>
+          ))}
+          {filtered.length === 0 && <p className="muted small">No MQTT traffic yet — waiting on the first message.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Stat({ label, value, children, tip }) {
   const content = (
     <div className="card stat">
@@ -524,9 +635,11 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
   const [mistCountdown, setMistCountdown] = useState(null);
   const mistTimerRef = useRef(null);
   const mistStartingRef = useRef(false);
+  const consoleRef = useRef(null);
   const [maintenance, setMaintenance] = useState([]);
   const [completingTaskId, setCompletingTaskId] = useState(null);
   const [plan, setPlan] = useState(null);
+  const [logs, setLogs] = useState([]);
 
   const loadMaintenance = useCallback(() => {
     api.maintenance(room.id).then(setMaintenance).catch(console.error);
@@ -539,6 +652,7 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
     api.history(room.id).then(setHistory).catch(console.error);
     api.schedule(room.id).then(setSchedule).catch(console.error);
     api.templates().then(setTemplates).catch(console.error);
+    api.logs(room.id).then(setLogs).catch(console.error);
     loadMaintenance();
     loadPlan();
   }, [room.id, loadMaintenance, loadPlan]);
@@ -570,15 +684,25 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
       if (row.room_id !== room.id) return;
       setHistory((h) => ({ ...h, events: [...h.events.slice(-199), row] }));
     }
+    function onLogBatch(rows) {
+      if (!rows.length || rows[0].room_id !== room.id) return;
+      setLogs((l) => [...l.slice(-199), ...rows]);
+    }
     socket.on('room_telemetry', onTelemetry);
     socket.on('room_event', onEvent);
+    socket.on('room_log_batch', onLogBatch);
     return () => {
       socket.off('room_telemetry', onTelemetry);
       socket.off('room_event', onEvent);
+      socket.off('room_log_batch', onLogBatch);
     };
   }, [socket, room.id]);
 
   useEffect(() => () => { if (mistTimerRef.current) clearInterval(mistTimerRef.current); }, []);
+
+  useEffect(() => {
+    if (consoleRef.current) consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
+  }, [logs]);
 
   function startMistCountdown() {
     if (mistStartingRef.current) return;
@@ -714,17 +838,21 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
             </div>
           ) : (
             <Tip text="Mists every bench in this room together, a few seconds from now, with a chance to cancel">
-              <button disabled={busyCommand} onClick={startMistCountdown}>💧 Mist now</button>
+              <button disabled={busyCommand} onClick={startMistCountdown}>
+                {busyCommand === 'mist_now' ? '…misting' : '💧 Mist now'}
+              </button>
             </Tip>
           )}
           <div className="row gap">
             <Tip text={schedule?.paused ? 'Resume automatic misting and feeding' : 'Pause all automatic misting and feeding until resumed'}>
               <button disabled={busyCommand} className="ghost" style={{ flex: 1 }} onClick={() => sendCommand(schedule?.paused ? 'resume' : 'pause')}>
-                {schedule?.paused ? 'Resume' : 'Pause'}
+                {busyCommand === 'pause' ? 'Pausing…' : busyCommand === 'resume' ? 'Resuming…' : schedule?.paused ? 'Resume' : 'Pause'}
               </button>
             </Tip>
             <Tip text="Skip the next scheduled feed step, if one is due today">
-              <button disabled={busyCommand} className="ghost" style={{ flex: 1 }} onClick={() => sendCommand('skip_feed')}>Skip feed</button>
+              <button disabled={busyCommand} className="ghost" style={{ flex: 1 }} onClick={() => sendCommand('skip_feed')}>
+                {busyCommand === 'skip_feed' ? 'Skipping…' : 'Skip feed'}
+              </button>
             </Tip>
           </div>
           <Tip text="Download the full mist/feed event history as a CSV file">
@@ -748,11 +876,21 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
       </div>
 
       <section className="stat-row">
-        <Stat label="Humidity" value={room.humidity != null ? `${room.humidity}%` : '—'} tip="Latest reading from this room's single environment sensor — shared by every bench in it">
+        <Stat label="Humidity" value={room.humidity != null ? `${room.humidity}%` : '—'} tip="Latest reading — averaged across both sensors on a 2-DHT22 unit, or the room's single sensor otherwise">
           <Sparkline points={humidityPoints} min={30} max={95} color="var(--water)" />
+          {room.humidity_sensor1 != null && room.humidity_sensor2 != null && (
+            <div className="muted small" style={{ marginTop: 2 }}>
+              S1 {Number(room.humidity_sensor1).toFixed(1)}% · S2 {Number(room.humidity_sensor2).toFixed(1)}%
+            </div>
+          )}
         </Stat>
-        <Stat label="Temperature" value={room.temp_c != null ? `${room.temp_c}°C` : '—'} tip="Latest temperature reading">
+        <Stat label="Temperature" value={room.temp_c != null ? `${room.temp_c}°C` : '—'} tip="Latest reading — averaged across both sensors on a 2-DHT22 unit, or the room's single sensor otherwise">
           <Sparkline points={tempPoints} min={20} max={38} color="var(--warn)" />
+          {room.temp_c_sensor1 != null && room.temp_c_sensor2 != null && (
+            <div className="muted small" style={{ marginTop: 2 }}>
+              S1 {Number(room.temp_c_sensor1).toFixed(1)}°C · S2 {Number(room.temp_c_sensor2).toFixed(1)}°C
+            </div>
+          )}
         </Stat>
         <Stat label="Rain" value={room.raining ? 'Raining — locked out' : 'Clear'} tip="While raining, misting is locked out even if thresholds are met" />
         <Stat label="Water used (recent)" value={`${(totalWaterMl / 1000).toFixed(2)} L`} tip="Sum of mist + feed volume across the events currently loaded, from the farm's shared tank" />
@@ -1045,6 +1183,21 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
               ))}
               {activityFeed.length === 0 && <p className="muted small">Nothing yet — waiting on the room's first sync.</p>}
             </ul>
+          </div>
+
+          <div className="card">
+            <h3>Device console</h3>
+            <p className="muted small">Live log lines batch-uploaded from this room's own ESP32, oldest first.</p>
+            <div className="device-console" ref={consoleRef}>
+              {logs.map((l) => (
+                <div key={l.id} className={`device-console-line ${l.level}`}>
+                  <span className="ts">{new Date(l.logged_at).toLocaleTimeString()}</span>
+                  <span className="lvl">{l.level}</span>
+                  <span>{l.message}</span>
+                </div>
+              ))}
+              {logs.length === 0 && <p className="muted small">No log lines yet — waiting on this board's next check-in.</p>}
+            </div>
           </div>
         </div>
       </section>

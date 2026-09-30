@@ -26,6 +26,14 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
       DEMO_DEVICE_KEY: ${DEMO_DEVICE_KEY:-dev-unit-1-key}
+      # Real ESP32 hardware talks to this over MQTT (a cloud broker, not
+      # this LAN) instead of polling the REST device API — see
+      # backend/src/mqtt.js. Unset in an environment with no broker and the
+      # bridge just stays disabled; the REST API (used by the simulator)
+      # is unaffected either way.
+      MQTT_URL: ${MQTT_URL:-}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
       PORT: "4000"
       # Without this, Node's Date "local" methods (getDay/getHours/etc, used
       # throughout planner.js) run in the container's default UTC — Sri
@@ -61,6 +69,18 @@ services:
       # See the backend service's TZ comment — same bug, same fix, for
       # rules.js's isDaytime/feedPhase/fungicideDue day-of-week math.
       TZ: Asia/Colombo
+      # Rooms/farms a real physical unit now drives — comma-separated
+      # device_keys the simulator must never touch. dev-unit-1-key is
+      # Greenhouse Room 1's own device; dev-unit-1-key-farm is Kadawatha
+      # Farm's *separate* farm-device key — easy to miss since the room
+      # and farm are different devices in the data model even though one
+      # physical board (bench-wired with the farm's tank float switches)
+      # reports both. Leaving the farm key off this list let the simulator
+      # keep posting fake tank telemetry for Kadawatha Farm, racing against
+      # and periodically overwriting the room's real sensor readings —
+      # exactly the "OLED says one thing, dashboard says another" bug this
+      # fixes.
+      EXCLUDE_DEVICE_KEYS: ${EXCLUDE_DEVICE_KEYS:-dev-unit-1-key,dev-unit-1-key-farm}
     depends_on:
       db:
         condition: service_healthy

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="258.00mm" height="208.00mm" viewBox="0 0 258.00 208.00">
+<!-- RED = cut through, BLUE = engrave/score only. 1 unit = 1 mm. -->
+<polygon points="1.000,207.000 257.000,207.000 257.000,1.000 1.000,1.000" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="43.000" cy="108.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="43.000" cy="26.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="215.000" cy="108.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="215.000" cy="26.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="64.000" cy="154.000" r="2.250" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="194.000" cy="154.000" r="2.250" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<rect x="39.000" y="22.000" width="180.000" height="90.000" fill="none" stroke="#0000ff" stroke-width="0.1" stroke-dasharray="2,1"/>
+<text x="129.000" y="68.500" font-family="Arial" font-size="3.5" text-anchor="middle" fill="#0000ff">MD0293 16-CH RELAY BOARD 180x90 (relay terminals to the BACK)</text>
+<text x="129.000" y="202.800" font-family="Arial" font-size="3" text-anchor="middle" fill="#0000ff">FRONT</text>
+</svg>

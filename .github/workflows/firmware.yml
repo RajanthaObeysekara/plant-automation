@@ -1,0 +1,101 @@
+# Builds the ESP32 firmware on every push that touches it, and on a version
+# tag (v1.2.3) also signs it and publishes firmware.bin + manifest.json as a
+# public GitHub Release. Boards poll
+#   https://github.com/<repo>/releases/latest/download/manifest.json
+# and install newer signed versions by themselves (firmware/esp32-unit/src/Ota.cpp).
+#
+# Required repository secret:
+#   OTA_SIGNING_KEY  - ECDSA P-256 private key (PEM). Its public half is
+#                      compiled into the firmware (src/OtaPublicKey.h).
+name: firmware
+
+on:
+  push:
+    branches: [main]
+    paths: ["firmware/esp32-unit/**", ".github/workflows/firmware.yml"]
+    tags: ["v*.*.*"]
+  pull_request:
+    paths: ["firmware/esp32-unit/**"]
+
+permissions:
+  contents: write   # create releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware/esp32-unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/esp32-unit/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Version from tag
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        env:
+          FW_VERSION: ${{ steps.ver.outputs.version }}
+        run: pio run -e esp32dev
+
+      - name: Refuse to publish secrets
+        run: |
+          # The image is public - fail loudly if anything credential-like got compiled in.
+          if strings .pio/build/esp32dev/firmware.bin | grep -Eiq 'wifi_pass=|mqtt_pass=|BEGIN (EC )?PRIVATE KEY'; then
+            echo "::error::firmware.bin appears to contain secrets"; exit 1
+          fi
+
+      - name: Sign and write manifest
+        if: github.ref_type == 'tag'
+        env:
+          OTA_SIGNING_KEY: ${{ secrets.OTA_SIGNING_KEY }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -n "$OTA_SIGNING_KEY" || { echo "::error::OTA_SIGNING_KEY secret is not set"; exit 1; }
+          BIN=.pio/build/esp32dev/firmware.bin
+          SHA=$(sha256sum "$BIN" | cut -d' ' -f1)
+          SIZE=$(stat -c%s "$BIN")
+          printf '%s\n%s' "$VERSION" "$SHA" > payload.txt      # exactly what Ota.cpp verifies
+          umask 077; printf '%s\n' "$OTA_SIGNING_KEY" > key.pem
+          openssl dgst -sha256 -sign key.pem -out sig.der payload.txt
+          rm -f key.pem
+          SIG=$(base64 -w0 sig.der)
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/firmware.bin"
+          jq -n --arg v "$VERSION" --arg u "$URL" --arg s "$SHA" --arg g "$SIG" --argjson n "$SIZE" \
+            '{version:$v, url:$u, size:$n, sha256:$s, sig:$g}' > manifest.json
+          cp "$BIN" firmware.bin
+          cat manifest.json
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" firmware.bin manifest.json \
+            --title "Firmware $GITHUB_REF_NAME" \
+            --notes "Signed OTA build. Boards install it automatically when idle."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ github.sha }}
+          path: firmware/esp32-unit/.pio/build/esp32dev/firmware.bin

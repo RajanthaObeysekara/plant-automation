@@ -2,14 +2,22 @@
 #include <Arduino.h>
 
 struct Reading {
-  bool valid = false;
-  float humidity = NAN;
-  float tempC = NAN;
+  bool valid = false;      // true if at least one of the two sensors read successfully
+  float humidity = NAN;    // the room's one definitive reading: average of both sensors
+  float tempC = NAN;       // when both are valid, otherwise whichever one is
+
+  bool sensor1Valid = false;
+  float humidity1 = NAN;
+  float tempC1 = NAN;
+
+  bool sensor2Valid = false;
+  float humidity2 = NAN;
+  float tempC2 = NAN;
+
+  // MD0019 rain sensor (YL-83/FC-37) — see Config.h.
   bool raining = false;
 };
 
-// Water level sensing moved to the (not yet built) farm controller — this
-// room has no tank of its own to sense. See Config.h.
 class SensorManager {
 public:
   void begin();

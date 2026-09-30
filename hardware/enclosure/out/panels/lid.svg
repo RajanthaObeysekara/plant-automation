@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="258.00mm" height="208.00mm" viewBox="0 0 258.00 208.00">
+<!-- RED = cut through, BLUE = engrave/score only. 1 unit = 1 mm. -->
+<polygon points="1.000,207.000 257.000,207.000 257.000,1.000 1.000,1.000" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<polygon points="116.000,178.500 116.390,178.462 116.765,178.348 117.111,178.163 117.414,177.914 117.663,177.611 117.848,177.265 117.962,176.890 118.000,176.500 118.000,163.500 117.962,163.110 117.848,162.735 117.663,162.389 117.414,162.086 117.111,161.837 116.765,161.652 116.390,161.538 116.000,161.500 96.000,161.500 95.610,161.538 95.235,161.652 94.889,161.837 94.586,162.086 94.337,162.389 94.152,162.735 94.038,163.110 94.000,163.500 94.000,176.500 94.038,176.890 94.152,177.265 94.337,177.611 94.586,177.914 94.889,178.163 95.235,178.348 95.610,178.462 96.000,178.500" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="30.000" cy="76.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="212.000" cy="76.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="30.000" cy="198.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="212.000" cy="198.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="121.000" cy="146.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="11.000" cy="197.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="11.000" cy="11.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="247.000" cy="197.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="247.000" cy="11.000" r="1.700" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<text x="106.000" y="185.000" font-family="Arial" font-size="4" text-anchor="middle" fill="#0000ff">PLANT AUTOMATION</text>
+<text x="129.000" y="202.800" font-family="Arial" font-size="3" text-anchor="middle" fill="#0000ff">FRONT</text>
+</svg>

@@ -33,6 +33,9 @@ export const api = {
   plan: (id) => request(`/rooms/${id}/plan`),
   updateSchedule: (id, data) => request(`/rooms/${id}/schedule`, { method: 'POST', body: JSON.stringify(data) }),
   history: (id) => request(`/rooms/${id}/history`),
+  // Lines the board's own firmware logs and batch-uploads (see
+  // firmware/esp32-unit/src/RemoteLog.cpp) — the Device Console panel.
+  logs: (id) => request(`/rooms/${id}/logs`),
   command: (id, type) => request(`/rooms/${id}/command`, { method: 'POST', body: JSON.stringify({ type }) }),
   maintenance: (roomId) => request(`/rooms/${roomId}/maintenance`),
   completeMaintenance: (roomId, taskId) => request(`/rooms/${roomId}/maintenance/${taskId}/complete`, { method: 'POST' }),
@@ -65,6 +68,10 @@ export const api = {
   tankCalibrations: (farmId) => request(`/farms/${farmId}/calibration`),
   saveTankCalibration: (farmId, tankKey, data) =>
     request(`/farms/${farmId}/calibration/${tankKey}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Raw MQTT wire traffic (every topic, both directions) for the MQTT
+  // Monitor tab — see backend/src/mqtt.js.
+  mqttMessages: () => request('/mqtt/messages'),
 
   async downloadHistoryCsv(id, filename) {
     const res = await fetch(`/api/rooms/${id}/history.csv`, {

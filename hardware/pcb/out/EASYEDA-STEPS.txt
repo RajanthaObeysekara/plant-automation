@@ -1,0 +1,37 @@
+Room controller main PCB v2 -> EasyEDA -> JLCPCB
+=================================================
+Board: 190 x 130 mm, 2 layers, all through-hole. It hangs under the enclosure
+lid (parts facing the lid) on 5x M3 x 15 standoffs.
+
+!! Module sizes are ASSUMED from published data (see the preview PDF).
+!! Measure your real modules and re-generate BEFORE ordering.
+
+The board is FULLY ROUTED already: 378 track segments, 105 vias, every net
+connected, checked clearance >= 0.20 mm between different nets.
+
+1. Open https://pro.easyeda.com (EasyEDA Pro, free) and sign in.
+2. File > Import > KiCad...  -> plant-room-controller-v2-routed.kicad_pcb
+   (new project). Parts, tracks and vias all come in.
+3. Design > Check DRC (rules: track 0.3 mm, clearance 0.2 mm) -> expect 0 errors.
+4. Optional, recommended: Place > Copper Area, Bottom layer, net GND, over the
+   logic area only (NOT over the brown 12V SIDE box). Rebuild pours.
+5. Fabrication > Gerber > Order at JLCPCB:
+     2 layers, 1.6 mm, **2 oz copper** (pump path carries up to 10 A), HASL.
+6. Parts: bom.csv lists the LCSC code for each part (or the exact term to type
+   into EasyEDA's part search where no single code could be confirmed).
+
+Re-run after measuring the modules:
+   python3 generate_pcb.py && python3 route_pcb.py
+
+Connectors
+  J5  5V IN      +5V / GND   (from your 5V supply - powers ESP32 + relay coils)
+  J6  12V IN     +12 / 0V    (from the 20 A supply)
+  J7  PUMP       +12 / 0V    10 A fuse F2
+  J8-J13 VALVE 1-6  +12 / 0V  1.1 A resettable fuse each
+      Wiring: J7/J8.. "+12" -> relay COM; relay NO -> pump/valve +;
+              pump/valve - -> the same terminal's "0V".
+      Fit a 1N4007 flyback diode across every valve/pump coil (at the coil,
+      stripe to +).
+  J20 2x10 ribbon -> MD0293 inputs: pins 1-16 = IN1-IN16, 17-18 = 5V, 19-20 = GND
+  J14 LOAD CELL  E+ E- A- A+    J15 RAIN plate
+  J1/J2 DHT22    J3/J4 float switches   J16 spare inputs   J21 595 outputs 17-24

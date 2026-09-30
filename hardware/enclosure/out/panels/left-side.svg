@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="202.00mm" height="72.00mm" viewBox="0 0 202.00 72.00">
+<!-- RED = cut through, BLUE = engrave/score only. 1 unit = 1 mm. -->
+<polygon points="1.000,71.000 201.000,71.000 201.000,1.000 1.000,1.000" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="179.000" cy="41.000" r="6.250" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="148.000" cy="41.000" r="6.250" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="117.000" cy="41.000" r="6.250" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="86.000" cy="41.000" r="6.250" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="55.000" cy="41.000" r="6.250" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<circle cx="24.000" cy="41.000" r="6.250" fill="none" stroke="#ff0000" stroke-width="0.1"/>
+<text x="179.000" y="53.000" font-family="Arial" font-size="2.6" text-anchor="middle" fill="#0000ff">DHT22-1</text>
+<text x="148.000" y="53.000" font-family="Arial" font-size="2.6" text-anchor="middle" fill="#0000ff">DHT22-2</text>
+<text x="117.000" y="53.000" font-family="Arial" font-size="2.6" text-anchor="middle" fill="#0000ff">RAIN</text>
+<text x="86.000" y="53.000" font-family="Arial" font-size="2.6" text-anchor="middle" fill="#0000ff">FLOAT LOW</text>
+<text x="55.000" y="53.000" font-family="Arial" font-size="2.6" text-anchor="middle" fill="#0000ff">FLOAT HIGH</text>
+<text x="24.000" y="53.000" font-family="Arial" font-size="2.6" text-anchor="middle" fill="#0000ff">LOAD CELL</text>
+</svg>

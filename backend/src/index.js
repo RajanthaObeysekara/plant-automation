@@ -12,6 +12,8 @@ const buildBenchesRouter = require('./routes/benches');
 const farmRoutes = require('./routes/farms');
 const maintenanceRoutes = require('./routes/maintenance');
 const { buildRoomDeviceRouter, buildFarmDeviceRouter } = require('./routes/device');
+const buildMqttMonitorRouter = require('./routes/mqttMonitor');
+const { connectMqtt } = require('./mqtt');
 
 const app = express();
 app.use(cors());
@@ -30,6 +32,7 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   socket.on('subscribe_room', (roomId) => socket.join(`room:${roomId}`));
   socket.on('subscribe_farm', (farmId) => socket.join(`farm:${farmId}`));
+  socket.on('subscribe_mqtt_monitor', () => socket.join('mqtt_monitor'));
 });
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
@@ -41,11 +44,13 @@ app.use('/api/farms', farmRoutes);
 app.use('/api/rooms/:roomId/maintenance', maintenanceRoutes);
 app.use('/api/device/room', buildRoomDeviceRouter(io));
 app.use('/api/device/farm', buildFarmDeviceRouter(io));
+app.use('/api/mqtt', buildMqttMonitorRouter());
 
 const PORT = process.env.PORT || 4000;
 
 async function start() {
   await bootstrap();
+  connectMqtt(io);
   server.listen(PORT, () => console.log(`[backend] listening on :${PORT}`));
 }
 

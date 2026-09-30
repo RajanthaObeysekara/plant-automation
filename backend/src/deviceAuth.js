@@ -28,6 +28,25 @@ async function loadKeyCache() {
   keyCacheAt = Date.now();
 }
 
+// Resolves a raw device_key to its room/farm row, touching last_seen_at —
+// the one thing that matters regardless of which transport carried the
+// key (an HTTP bearer header, or a field inside an MQTT message payload;
+// see backend/src/mqtt.js).
+async function resolveDeviceByKey(key) {
+  if (Date.now() - keyCacheAt > KEY_CACHE_TTL_MS) {
+    await loadKeyCache();
+  }
+  const match = keyCache.find((k) => safeEqual(k.device_key, key));
+  if (!match) return null;
+
+  const table = match.kind === 'room' ? 'rooms' : 'farms';
+  const { rows } = await pool.query(
+    `UPDATE ${table} SET last_seen_at = now() WHERE id = $1 RETURNING *`,
+    [match.id]
+  );
+  return { device: rows[0], kind: match.kind };
+}
+
 async function requireDevice(req, res, next) {
   const header = req.headers.authorization || '';
   const [scheme, key] = header.split(' ');
@@ -35,21 +54,12 @@ async function requireDevice(req, res, next) {
     return res.status(401).json({ error: 'missing device key' });
   }
 
-  if (Date.now() - keyCacheAt > KEY_CACHE_TTL_MS) {
-    await loadKeyCache();
+  const resolved = await resolveDeviceByKey(key);
+  if (!resolved) return res.status(401).json({ error: 'unknown device key' });
+  if (resolved.kind !== req.deviceKind) {
+    return res.status(401).json({ error: `this key belongs to a ${resolved.kind} device` });
   }
-  const match = keyCache.find((k) => safeEqual(k.device_key, key));
-  if (!match) return res.status(401).json({ error: 'unknown device key' });
-  if (match.kind !== req.deviceKind) {
-    return res.status(401).json({ error: `this key belongs to a ${match.kind} device` });
-  }
-
-  const table = match.kind === 'room' ? 'rooms' : 'farms';
-  const { rows } = await pool.query(
-    `UPDATE ${table} SET last_seen_at = now() WHERE id = $1 RETURNING *`,
-    [match.id]
-  );
-  req.device = rows[0];
+  req.device = resolved.device;
   next();
 }
 
@@ -63,4 +73,4 @@ function requireDeviceKind(kind) {
   };
 }
 
-module.exports = { requireDeviceKind };
+module.exports = { requireDeviceKind, resolveDeviceByKey };

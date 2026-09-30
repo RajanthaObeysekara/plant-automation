@@ -24,6 +24,11 @@ struct PlanDay {
 struct DeviceConfig {
   bool valid = false;
 
+  int roomId = 0;
+  String roomName = "";
+  int farmId = 0;
+  String farmName = "";
+
   float humidityBelow = 60;
   float tempAbove = 32;
 

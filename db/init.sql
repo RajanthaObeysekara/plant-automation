@@ -147,8 +147,19 @@ CREATE TABLE room_schedules (
 CREATE TABLE room_telemetry (
   id BIGSERIAL PRIMARY KEY,
   room_id INT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+  -- humidity/temp_c is the room's definitive reading (the average of both
+  -- sensors on a real 2-DHT22 unit, or just the one sensor on a simulated
+  -- single-sensor room) — every existing chart/rule/UI element keeps
+  -- reading these two columns exactly as before. The *_sensor1/2 columns
+  -- are optional raw per-sensor values, populated only by real hardware
+  -- that actually has two DHT22s wired (see firmware/esp32-unit) — null
+  -- for every simulated room, which only ever has one virtual sensor.
   humidity NUMERIC,
   temp_c NUMERIC,
+  humidity_sensor1 NUMERIC,
+  temp_c_sensor1 NUMERIC,
+  humidity_sensor2 NUMERIC,
+  temp_c_sensor2 NUMERIC,
   raining BOOLEAN NOT NULL DEFAULT false,
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -226,3 +237,28 @@ CREATE TABLE commands (
 );
 CREATE INDEX idx_commands_room_status ON commands(room_id, status);
 CREATE INDEX idx_commands_farm_status ON commands(farm_id, status);
+
+CREATE TABLE device_logs (
+  id BIGSERIAL PRIMARY KEY,
+  room_id INT REFERENCES rooms(id) ON DELETE CASCADE,
+  farm_id INT REFERENCES farms(id) ON DELETE CASCADE,
+  level TEXT NOT NULL DEFAULT 'info',
+  message TEXT NOT NULL,
+  logged_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK ((room_id IS NOT NULL) <> (farm_id IS NOT NULL))
+);
+CREATE INDEX idx_device_logs_room_time ON device_logs(room_id, logged_at DESC);
+CREATE INDEX idx_device_logs_farm_time ON device_logs(farm_id, logged_at DESC);
+
+-- Raw wire-level MQTT traffic (every topic, not just the ones the backend
+-- recognizes) for the dashboard's MQTT Monitor tab — distinct from
+-- device_logs, which is curated firmware log lines for one room's console.
+CREATE TABLE mqtt_messages (
+  id BIGSERIAL PRIMARY KEY,
+  direction TEXT NOT NULL CHECK (direction IN ('in', 'out')),
+  topic TEXT NOT NULL,
+  payload TEXT,
+  room_id INT REFERENCES rooms(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_mqtt_messages_time ON mqtt_messages(created_at DESC);

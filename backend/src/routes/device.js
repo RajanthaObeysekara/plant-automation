@@ -1,134 +1,50 @@
 const express = require('express');
 const { pool } = require('../db');
 const { requireDeviceKind } = require('../deviceAuth');
-const { buildSevenDayPlan } = require('../planner');
+const {
+  buildRoomConfigPayload, ingestTelemetry, ingestStatus, ingestEvent, ingestLogs,
+} = require('../deviceIngest');
 
 // Status strings actually posted by a room controller (env sensor + shared
 // misting for every bench in it) vs. a farm controller (shared water tank +
 // fertigation rig, used on behalf of whichever room's feed day it is).
-const ROOM_ACTIVITIES = ['idle', 'misting'];
 const TANK_ACTIVITIES = ['idle', 'filling', 'dechlorinating', 'overflow'];
 const FERT_ACTIVITIES = ['idle', 'mixing', 'stirring', 'filtering', 'feeding'];
 
+// Real hardware now mostly talks MQTT (see backend/src/mqtt.js) for
+// instant two-way push instead of polling — these REST routes stay in
+// place for the fleet simulator (docker-compose's `simulator` service),
+// which still speaks plain HTTP. Both transports share the exact same DB
+// writes and Socket.IO emits via deviceIngest.js, so a room behaves
+// identically either way.
 function buildRoomDeviceRouter(io) {
   const router = express.Router();
   router.use(requireDeviceKind('room'));
 
   router.get('/config', async (req, res) => {
-    const room = req.device;
-    const [scheduleRes, farmRes] = await Promise.all([
-      pool.query('SELECT * FROM room_schedules WHERE room_id = $1', [room.id]),
-      pool.query('SELECT * FROM farms WHERE id = $1', [room.farm_id]),
-    ]);
-    const s = scheduleRes.rows[0];
-    if (!s) return res.status(404).json({ error: 'no schedule configured for this room yet' });
-    const farm = farmRes.rows[0];
-
-    // `?boot=1` — the device sends this only on its very first config fetch
-    // after power-on, so a field reboot is visible on the dashboard instead
-    // of looking identical to a routine poll. last_config_sync_at is
-    // touched on every fetch, booted or not, so "last check-in" is always
-    // accurate even between reboots.
-    const booted = req.query.boot === '1';
-    await pool.query(
-      `UPDATE rooms SET last_config_sync_at = now()${booted ? ', last_boot_at = now()' : ''} WHERE id = $1`,
-      [room.id]
-    );
-
-    res.json({
-      roomId: room.id,
-      roomName: room.name,
-      trigger: { humidityBelow: s.humidity_below, tempAbove: Number(s.temp_above) },
-      schedule: { windowStart: s.window_start, windowEnd: s.window_end, pollSeconds: s.poll_seconds },
-      feed: {
-        cycleWeeks: s.cycle_weeks,
-        feedStartDate: s.feed_start_date,
-        preWaterWaitMinutes: s.pre_water_wait_minutes,
-        doseMl: s.dose_ml,
-        mixRatioMlPerL: Number(s.feed_mix_ratio_ml_per_l),
-        batchWaterL: Number(s.feed_batch_water_l),
-        // Persisted so "already fed today" survives a simulator restart —
-        // an in-memory-only guard re-doses every room whose feed day
-        // matches today the moment the process restarts.
-        lastFedDate: s.last_fed_date,
-      },
-      fungicide: {
-        intervalDays: s.fungicide_interval_days,
-        lastSprayedDate: s.fungicide_last_sprayed_date,
-        doseMl: s.fungicide_dose_ml,
-        automated: s.fungicide_automated,
-        mixRatioMlPerL: Number(s.fungicide_mix_ratio_ml_per_l),
-        batchWaterL: Number(s.fungicide_batch_water_l),
-      },
-      paused: s.paused,
-      skipFeedOnce: s.skip_feed_once,
-      pumpFlowLpm: farm ? Number(farm.pump_flow_lpm) : null,
-      tank: {
-        // The farm's shared tank gates whether this room is allowed to
-        // mist/feed right now. Blocked while low (empty or draining down),
-        // mid-fill (pressure/flow isn't settled yet), dechlorinating, or in
-        // overflow — any one of these means "don't draw from this tank".
-        ready: !!farm && !farm.water_low && !farm.water_overflow
-          && farm.tank_activity !== 'dechlorinating' && farm.tank_activity !== 'filling',
-        low: farm ? farm.water_low : null,
-      },
-      // Server-initiated scheduling: the room caches this and can decide
-      // "is today a feed day / is fungicide due" purely from this array,
-      // fully offline, for up to a week without contacting the server
-      // again. Regenerated fresh (relative to today) on every fetch.
-      scheduleVersion: s.schedule_version,
-      plan: buildSevenDayPlan(s),
-      syncedAt: new Date().toISOString(),
-    });
+    const payload = await buildRoomConfigPayload(req.device, { boot: req.query.boot === '1' });
+    if (!payload) return res.status(404).json({ error: 'no schedule configured for this room yet' });
+    res.json(payload);
   });
 
   router.post('/status', async (req, res) => {
-    const { activity } = req.body || {};
-    if (!ROOM_ACTIVITIES.includes(activity)) {
-      return res.status(400).json({ error: `activity must be one of ${ROOM_ACTIVITIES.join(', ')}` });
+    try {
+      res.status(201).json(await ingestStatus(io, req.device, req.body));
+    } catch (err) {
+      res.status(400).json({ error: err.message });
     }
-    const { rows } = await pool.query(
-      'UPDATE rooms SET mist_activity = $2, mist_activity_started_at = now() WHERE id = $1 RETURNING *',
-      [req.device.id, activity]
-    );
-    io.to(`room:${req.device.id}`).emit('room_status', { roomId: req.device.id, activity: rows[0].mist_activity });
-    res.status(201).json(rows[0]);
   });
 
   router.post('/telemetry', async (req, res) => {
-    const { humidity, tempC, raining, scheduleVersion } = req.body || {};
-    const inserts = [
-      pool.query(
-        `INSERT INTO room_telemetry (room_id, humidity, temp_c, raining) VALUES ($1,$2,$3,$4) RETURNING *`,
-        [req.device.id, humidity, tempC, !!raining]
-      ),
-    ];
-    // The device echoes back whichever schedule_version it fetched last —
-    // this is what makes "synced" a checkable fact instead of an assumption.
-    // Comes in on telemetry (posted every cycle already) rather than a
-    // dedicated endpoint, so it costs nothing extra on the wire.
-    if (scheduleVersion != null) {
-      inserts.push(pool.query('UPDATE rooms SET synced_schedule_version = $2 WHERE id = $1', [req.device.id, scheduleVersion]));
-    }
-    const [reading] = await Promise.all(inserts);
-    io.to(`room:${req.device.id}`).emit('room_telemetry', reading.rows[0]);
-    res.status(201).json(reading.rows[0]);
+    res.status(201).json(await ingestTelemetry(io, req.device, req.body));
   });
 
   router.post('/events', async (req, res) => {
-    const { type, durationSeconds, volumeMl, meta } = req.body || {};
-    const allowed = ['mist', 'fungicide_reminder', 'fungicide_sprayed', 'mist_skipped', 'feed_reminder'];
-    if (!allowed.includes(type)) return res.status(400).json({ error: `type must be one of ${allowed.join(', ')}` });
-
-    const { rows } = await pool.query(
-      'INSERT INTO events (room_id, type, duration_seconds, volume_ml, meta) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [req.device.id, type, durationSeconds || null, volumeMl || null, meta || null]
-    );
-    if (type === 'fungicide_sprayed') {
-      await pool.query('UPDATE room_schedules SET fungicide_last_sprayed_date = CURRENT_DATE WHERE room_id = $1', [req.device.id]);
+    try {
+      res.status(201).json(await ingestEvent(io, req.device, req.body));
+    } catch (err) {
+      res.status(400).json({ error: err.message });
     }
-    io.to(`room:${req.device.id}`).emit('room_event', rows[0]);
-    res.status(201).json(rows[0]);
   });
 
   router.get('/commands', async (req, res) => {
@@ -140,6 +56,14 @@ function buildRoomDeviceRouter(io) {
       await pool.query("UPDATE commands SET status = 'delivered', delivered_at = now() WHERE id = ANY($1)", [rows.map((r) => r.id)]);
     }
     res.json(rows);
+  });
+
+  router.post('/logs', async (req, res) => {
+    try {
+      res.status(201).json(await ingestLogs(io, req.device, req.body));
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
   });
 
   return router;
