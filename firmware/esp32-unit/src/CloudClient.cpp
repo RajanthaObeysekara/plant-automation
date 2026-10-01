@@ -256,6 +256,13 @@ bool CloudClient::postFeedReminder(const String &date, int doseMl) {
   return publish("plant/device/events", body);
 }
 
+bool CloudClient::postWater(JsonDocument &doc) {
+  doc["deviceKey"] = _deviceKey;
+  String body;
+  serializeJson(doc, body);
+  return publish("plant/device/water", body);
+}
+
 bool CloudClient::postStatus(const String &activity) {
   JsonDocument doc;
   doc["deviceKey"] = _deviceKey;

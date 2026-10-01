@@ -1,5 +1,4 @@
 #include "ActuatorController.h"
-#include <Arduino.h>
 #include "Config.h"
 #include "ShiftRegister.h"
 
@@ -10,21 +9,28 @@ void relayWrite(uint8_t output, bool energize) {
 } // namespace
 
 // Relays are driven through the shift register — ShiftRegister::begin()
-// must already have run (see setup() in main.cpp).
+// must already have run (first thing in setup(), see main.cpp).
 void ActuatorController::begin() {
   allOff();
 }
 
-void ActuatorController::startWaterLine() {
-  relayWrite(SR_OUT_WATER_VALVE, true);
-  relayWrite(SR_OUT_WATER_PUMP, true);
+void ActuatorController::setInputValve(bool open) {
+  _in = open;
+  relayWrite(SR_OUT_INPUT_VALVE, open);
 }
 
-void ActuatorController::stopWaterLine() {
-  relayWrite(SR_OUT_WATER_PUMP, false);
-  relayWrite(SR_OUT_WATER_VALVE, false);
+void ActuatorController::setOutputValve(bool open) {
+  _out = open;
+  relayWrite(SR_OUT_OUTPUT_VALVE, open);
+}
+
+void ActuatorController::setPump(bool on) {
+  _pump = on;
+  relayWrite(SR_OUT_PUMP, on);
 }
 
 void ActuatorController::allOff() {
-  stopWaterLine();
+  setPump(false);       // pump first, so it never runs against a closing valve
+  setOutputValve(false);
+  setInputValve(false);
 }

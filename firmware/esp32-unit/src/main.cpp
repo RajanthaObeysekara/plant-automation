@@ -13,16 +13,12 @@
 #include "LocalCache.h"
 #include "Secrets.h"
 #include "Ota.h"
+#include "WaterSystem.h"
 #include "RemoteLog.h"
 #include "ShiftRegister.h"
 #include "WeightSensor.h"
 #include "TimeSync.h"
 
-// No relay/pump/valve is physically wired to this unit yet — only 2x
-// DHT22 + the status display. Flip this to 1 once a water line is
-// actually wired to SR_OUT_WATER_PUMP/VALVE; nothing else needs to
-// change, every mist-decision/actuation call below is already gated on it.
-#define ACTUATION_ENABLED 0
 
 SensorManager sensors;
 ActuatorController actuators;
@@ -57,6 +53,7 @@ unsigned long srTestCycles = 0;   // completed full cycles since boot
 void setSrTest(bool on) {
   srTestOn = on;
   srTestStep = 0;
+  Water::setSuspended(on);   // the chase drives the same relays - water control stands down
   Secrets::set("sr_test", on ? "1" : "0");
   ShiftRegister::allIdle();   // start (or end) with every relay off
   Serial.printf("[sr-test] relay chase %s (remembered across restarts)\n", on ? "ON" : "OFF - all outputs idle");
@@ -213,7 +210,6 @@ void startMist(bool forced) {
   cycleStartedAt = millis();
   cycleWasForced = forced;
   lastMistAt = millis();
-  actuators.startWaterLine();
   cloud.postStatus("misting");
   Serial.printf("[cycle] misting started%s\n", forced ? " [manual override]" : "");
   RemoteLog::add("info", forced ? "misting started [manual override]" : "misting started");
@@ -248,49 +244,38 @@ void reactToMistState() {
   localtime_r(&now, &nowTm);
   String todayStr = todayKey(nowTm);
 
-#if ACTUATION_ENABLED
   bool cooledDown = millis() - lastMistAt > MIST_COOLDOWN_MS;
-  bool tankOk = cfg.tankReady; // reported by the room's own config fetch, sourced from the farm device
-  bool wants = tankOk && (mistRequested
+  bool wants = mistRequested
     || (currentReading.valid && cooledDown
-        && RuleEngine::shouldMist(nowTm, currentReading.humidity, currentReading.tempC, currentReading.raining, cfg)));
+        && RuleEngine::shouldMist(nowTm, currentReading.humidity, currentReading.tempC, currentReading.raining, cfg));
+  if (!wants) return;
 
-  if (mistRequested && !tankOk) {
-    Serial.println(cfg.tankLow
-      ? "[main] mist_now ignored — shared tank is low"
-      : "[main] mist_now ignored — shared tank not ready");
-    cloud.postMistSkipped(cfg.tankLow ? "tank_low" : "tank_not_ready");
-    // Both must fit the 96px/16-char display — "MIST: TANK NOT READY" (21
-    // chars) does not, so this drops the "MIST:" prefix rather than the
-    // more useful half of the message.
-    setControlNote(cfg.tankLow ? "TANK LOW" : "TANK NOT READY");
-  } else if (wants && !tankOk && lastSkippedReminderOn != todayStr) {
-    // Would have misted on its own trigger, but the shared tank isn't
-    // ready — surface this once a day rather than staying silently idle.
-    lastSkippedReminderOn = todayStr;
-    cloud.postMistSkipped(cfg.tankLow ? "tank_low" : "tank_not_ready");
+  bool forced = mistRequested;
+  mistRequested = false; // never leave a stale request queued
+
+  if (!hasTank) {
+    // This board has no water rig (no level sensors / relays) - say so
+    // instead of silently doing nothing.
+    if (forced) {
+      Serial.println("[main] mist_now ignored — no water rig on this board");
+      RemoteLog::add("warn", "mist_now ignored — no water rig on this board");
+      cloud.postMistSkipped("no_hardware");
+      setControlNote("MIST: NO PUMP");
+    }
+    return;
   }
 
-  if (wants) {
-    bool forced = mistRequested;
-    mistRequested = false;
+  String whyNot;
+  if (Water::requestPump(MIST_DURATION_SECONDS, whyNot)) {
     startMist(forced);
-  } else if (!tankOk) {
-    mistRequested = false; // don't leave a stale request queued forever while the tank isn't ready
+  } else if (forced || lastSkippedReminderOn != todayStr) {
+    // Manual request: always answer. Automatic trigger: report at most once a day.
+    if (!forced) lastSkippedReminderOn = todayStr;
+    Serial.println("[main] mist skipped — " + whyNot);
+    RemoteLog::add("warn", "mist skipped — " + whyNot);
+    cloud.postMistSkipped(whyNot == "TANK LOW" ? "tank_low" : "tank_not_ready");
+    if (forced) setControlNote(whyNot);
   }
-#else
-  // Monitoring only — no relay/pump/valve wired to this unit yet. Never
-  // decide to mist, never actuate; a manual "Mist now" click from the
-  // dashboard still gets an honest answer instead of silently doing
-  // nothing.
-  if (mistRequested) {
-    Serial.println("[main] mist_now ignored — no water line wired to this unit yet");
-    RemoteLog::add("warn", "mist_now ignored — no water line wired to this unit yet");
-    cloud.postMistSkipped("no_hardware");
-    setControlNote("MIST: NO PUMP"); // "MIST: NO HARDWARE" (17 chars) overflows the 16-char display width
-    mistRequested = false;
-  }
-#endif
 }
 
 // Polled on its own fast COMMAND_POLL_MS loop (see loop()), separately from
@@ -329,6 +314,42 @@ bool lastSentRaining = false;
 int lastSentScheduleVersion = -1;
 bool lastSentTankValid = false;
 bool lastSentLowWet = false, lastSentHighWet = false;
+
+// Water rig snapshot for the dashboard: sent the moment any valve, the
+// pump, a level or a state changes (weight only when it moves >= 0.1 kg),
+// plus a heartbeat every WATER_HEARTBEAT_MS so a dashboard that just
+// opened, or a backend that restarted, catches up within a minute.
+#define WATER_HEARTBEAT_MS 60000UL
+void maybeSendWater() {
+  if (!hasTank || !cloud.connected()) return;
+  static String lastKey = "";
+  static float lastKg = NAN;
+  static unsigned long lastSentAt = 0;
+  float kg = hasScale ? WeightSensor::kg() : NAN;
+  String key = String(actuators.inputValveOpen()) + actuators.outputValveOpen() + actuators.pumpOn() +
+               Water::fillStateName() + Water::pumpStateName() + Water::levelsKnown() +
+               Water::bottomWet() + Water::topWet() + Water::suspendedNow() + Water::statusText().startsWith("PUMP");
+  bool kgMoved = isnan(kg) != isnan(lastKg) || (!isnan(kg) && fabsf(kg - lastKg) >= 0.1f);
+  unsigned long now = millis();
+  if (key == lastKey && !kgMoved && now - lastSentAt < WATER_HEARTBEAT_MS) return;
+  JsonDocument doc;
+  doc["inputValve"] = actuators.inputValveOpen();
+  doc["outputValve"] = actuators.outputValveOpen();
+  doc["pump"] = actuators.pumpOn();
+  doc["fill"] = Water::fillStateName();
+  doc["pumpState"] = Water::pumpStateName();
+  doc["pumpSecondsLeft"] = Water::pumpSecondsLeft();
+  doc["levelsKnown"] = Water::levelsKnown();
+  doc["bottomWet"] = Water::bottomWet();
+  doc["topWet"] = Water::topWet();
+  doc["relayTest"] = Water::suspendedNow();
+  doc["status"] = Water::statusText();
+  if (!isnan(kg)) doc["weightKg"] = roundf(kg * 10) / 10.0f;
+  doc["fw"] = Ota::version();
+  if (cloud.postWater(doc)) {
+    lastKey = key; lastKg = kg; lastSentAt = now;
+  }
+}
 
 void maybeSendTelemetry(bool force) {
   bool lowWet, highWet;
@@ -421,14 +442,19 @@ void tickCycle() {
       break;
 
     case Cycle::MISTING:
-      if (millis() - cycleStartedAt >= (unsigned long)MIST_DURATION_SECONDS * 1000UL) {
-        actuators.stopWaterLine();
-        float volumeMl = cfg.pumpFlowLpm * (MIST_DURATION_SECONDS / 60.0f) * 1000.0f;
-        cloud.postMistEvent(MIST_DURATION_SECONDS, volumeMl, currentReading.humidity, currentReading.tempC);
+      // The pump run itself (valve lead/lag, dry-run guard) is sequenced by
+      // WaterSystem; the cycle ends once it has fully finished.
+      if (!Water::pumpBusy()) {
+        int seconds = Water::lastRunSeconds();
+        float kg = Water::lastRunKg();
+        // Prefer the scale's measured drop (1 kg = 1 L); fall back to the flow estimate.
+        float volumeMl = !isnan(kg) && kg > 0 ? kg * 1000.0f : cfg.pumpFlowLpm * (seconds / 60.0f) * 1000.0f;
+        cloud.postMistEvent(seconds, volumeMl, currentReading.humidity, currentReading.tempC);
         cycle = Cycle::IDLE;
         cloud.postStatus("idle");
-        Serial.println("[cycle] misting complete");
-        RemoteLog::add("info", "misting complete");
+        if (Water::lastRunStoppedDry()) setControlNote("DRY RUN STOP");
+        Serial.printf("[cycle] misting complete: %ds, %.0f mL\n", seconds, volumeMl);
+        RemoteLog::add("info", "misting complete: " + String(seconds) + "s, " + String(volumeMl, 0) + " mL");
       }
       break;
   }
@@ -475,7 +501,7 @@ String tankStateLabel() {
   // high wet without low wet means a sensor fault or bad wiring, not a
   // real water level.
   if (highWet && !lowWet) return "FAULT";
-  if (!lowWet) return "EMPTY";
+  if (!lowWet) return "LOW";
   if (highWet) return "FULL";
   return "OK";
 }
@@ -517,6 +543,8 @@ void setup() {
   hasScale = Secrets::hasScale();
   if (hasScale) WeightSensor::begin(); // no HX711: its DT pin floats "ready" and would be read nonstop
   actuators.begin();
+  Water::begin(&actuators);
+  if (srTestOn) Water::setSuspended(true);   // saved relay-test setting: chase owns the relays
   srTestOn = Secrets::get("sr_test", SR_TEST_ENABLED ? "1" : "0") == "1";
   if (srTestOn) Serial.println("[sr-test] relay chase ON (saved setting for this board)");
   hasTank = Secrets::hasTank();
@@ -619,9 +647,13 @@ void loop() {
   if (hasTank) {
     checkFloatSwitch();
     checkFloatSwitch2();
+    bool lowWet = false, highWet = false;
+    bool levelsValid = getTankWetness(lowWet, highWet);
+    Water::tick(levelsValid, lowWet, highWet, hasScale ? WeightSensor::kg() : NAN);
+    maybeSendWater();
   }
-  Ota::loop(WiFi.status() == WL_CONNECTED, cycle == Cycle::IDLE && !mistRequested, oled, cloud,
-            [] { actuators.allOff(); ShiftRegister::allIdle(); digitalWrite(PIN_RELAY_POWER_EN, LOW); });
+  Ota::loop(WiFi.status() == WL_CONNECTED, cycle == Cycle::IDLE && !mistRequested && !Water::busy(), oled, cloud,
+            [] { Water::stopAll("firmware update"); ShiftRegister::allIdle(); digitalWrite(PIN_RELAY_POWER_EN, LOW); });
 
   // Zero MQTT cost — applies a backend-pushed config (Pause/Resume/
   // schedule change) the instant it arrives, without this device spending
@@ -695,7 +727,9 @@ void loop() {
     lastWeightLogAt = now;
     Serial.printf("[weight] raw=%ld, %s\n", WeightSensor::raw(), weightLabel().c_str());
   }
-  oled.update(currentReading, cycleLabel(), cfg.paused, note, identity, tankStateLabel(), ShiftRegister::activeMask());
+  String waterStatus = hasTank ? Water::statusText() : "";
+  oled.update(currentReading, waterStatus.length() ? waterStatus.c_str() : cycleLabel(), cfg.paused, note, identity,
+              tankStateLabel(), ShiftRegister::activeMask());
 
   delay(150);
 }

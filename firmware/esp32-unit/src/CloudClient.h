@@ -3,6 +3,7 @@
 #include <vector>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
 #include "DeviceConfig.h"
 
 // One buffered Serial line, batched up and shipped to the dashboard's
@@ -61,6 +62,9 @@ public:
   bool postFungicideReminder(const String &lastSprayedDate);
   bool postFeedReminder(const String &date, int doseMl);
   bool postStatus(const String &activity);
+  // Water rig snapshot (valves, pump, levels, weight) -> plant/device/water.
+  // `fields` is filled in by the caller; deviceKey is added here.
+  bool postWater(JsonDocument &fields);
   // Drains whatever commands have arrived (pushed) since the last call —
   // no network round trip here, they've already been received in the
   // background by loop().

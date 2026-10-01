@@ -83,9 +83,17 @@
 #define PIN_RELAY_POWER_EN 2
 #define RELAY_POWER_SETTLE_MS 200UL // after the all-off frame, before coil power
 
-// Relay channels, as shift register outputs (Qn) rather than GPIOs.
-#define SR_OUT_WATER_PUMP  1
-#define SR_OUT_WATER_VALVE 2
+// Relay channels, as shift register outputs (Qn = relay n+1).
+#define SR_OUT_INPUT_VALVE  0  // relay 1: mains -> bucket (normally-closed 12V solenoid)
+#define SR_OUT_OUTPUT_VALVE 1  // relay 2: bucket -> pump  (normally-closed 12V solenoid)
+#define SR_OUT_PUMP         2  // relay 3: pump motor
+
+// Water rig timing (see WaterSystem.h)
+#define WATER_FLOAT_DEBOUNCE_MS 1500UL          // a float must hold a reading this long
+#define WATER_VALVE_LEAD_MS     1000UL          // output valve open -> pump on
+#define WATER_VALVE_LAG_MS      1000UL          // pump off -> output valve closed
+#define WATER_FILL_TIMEOUT_MS   (15UL * 60UL * 1000UL)
+#define WATER_FILL_RETRY_MS     (30UL * 60UL * 1000UL)
 
 // Bench test: energizes outputs 1-17 (Q0-Q16) one at a time in order,
 // one step every SR_TEST_INTERVAL_MS, then de-energizes them in the same

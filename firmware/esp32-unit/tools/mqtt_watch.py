@@ -41,7 +41,7 @@ def main():
             return
         kind = topic.rsplit("/", 1)[-1]
         if kind == "logs" and isinstance(body, dict):
-            for l in body.get("lines", []):
+            for l in body.get("logs") or body.get("lines") or []:   # firmware sends {"logs": [...]}
                 lvl = l.get("level", "info") if isinstance(l, dict) else "info"
                 msg = l.get("message", "") if isinstance(l, dict) else str(l)
                 show(C.get(lvl, C["info"]), f"log/{lvl}", msg)

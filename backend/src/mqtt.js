@@ -2,7 +2,7 @@ const mqtt = require('mqtt');
 const { pool } = require('./db');
 const { resolveDeviceByKey } = require('./deviceAuth');
 const {
-  buildRoomConfigPayload, ingestTelemetry, ingestStatus, ingestEvent, ingestLogs,
+  buildRoomConfigPayload, ingestTelemetry, ingestStatus, ingestEvent, ingestLogs, ingestWater,
 } = require('./deviceIngest');
 
 // Real ESP32 hardware talks MQTT instead of polling REST — a router on the
@@ -15,6 +15,7 @@ const {
 //   plant/device/status      device -> backend
 //   plant/device/events      device -> backend
 //   plant/device/logs        device -> backend
+//   plant/device/water       device -> backend  (water rig: valves, pump, levels, weight)
 //   plant/device/<key>/config_request   device -> backend, on boot
 //   plant/device/<key>/config   backend -> device, retained (latest schedule/plan)
 //   plant/device/<key>/commands backend -> device (mist_now / pause / resume / skip_feed)
@@ -29,6 +30,7 @@ const INBOUND_HANDLERS = {
   'plant/device/status': ingestStatus,
   'plant/device/events': ingestEvent,
   'plant/device/logs': ingestLogs,
+  'plant/device/water': ingestWater,
 };
 
 let client = null;

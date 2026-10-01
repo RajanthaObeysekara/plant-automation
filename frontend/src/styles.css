@@ -543,3 +543,28 @@ input[type="checkbox"] { width: auto; }
   transform: translateY(1px);
   z-index: 40;
 }
+
+/* ---- Water rig (WaterRig.jsx) ---- */
+.rig-row { margin: 0 0 16px; }
+.water-rig-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 6px; }
+.water-rig-head h3 { margin: 0; }
+.water-rig--stale .rig-svg { opacity: 0.55; }
+.rig-pill { font: 500 12px "IBM Plex Mono", monospace; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); }
+.rig-pill--active { color: var(--water-ink); border-color: color-mix(in srgb, var(--water) 55%, transparent); }
+.rig-pill--alarm { color: #fff; background: var(--crit); border-color: var(--crit); }
+.rig-svg { width: 100%; height: auto; max-height: 320px; display: block; }
+.rig-label { font: 400 11px "IBM Plex Mono", monospace; fill: var(--muted); }
+.rig-state { font: 600 10px "IBM Plex Mono", monospace; }
+.rig-weight { font: 600 14px "IBM Plex Mono", monospace; fill: var(--ink); }
+.rig-pipe { fill: none; stroke: var(--line-strong); stroke-width: 8; stroke-linecap: round; }
+.rig-flow { fill: none; stroke: var(--water); stroke-width: 4; stroke-linecap: round; stroke-dasharray: 10 12; animation: rig-flow 0.9s linear infinite; }
+.rig-flow--rev { animation-direction: reverse; }
+@keyframes rig-flow { to { stroke-dashoffset: -44; } }
+.rig-bucket { fill: var(--surface-sunken); stroke: var(--line-strong); stroke-width: 2; }
+.rig-water { fill: color-mix(in srgb, var(--water) 45%, transparent); transition: all 0.6s ease; }
+.rig-scale { fill: var(--surface-2); stroke: var(--line-strong); }
+.rig-impeller { transform-box: fill-box; transform-origin: center; }
+.rig-impeller--on { animation: rig-spin 0.8s linear infinite; }
+@keyframes rig-spin { to { transform: rotate(360deg); } }
+.rig-legend { margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) { .rig-flow, .rig-impeller--on { animation: none; } }

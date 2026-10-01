@@ -36,6 +36,8 @@ export const api = {
   // Lines the board's own firmware logs and batch-uploads (see
   // firmware/esp32-unit/src/RemoteLog.cpp) — the Device Console panel.
   logs: (id) => request(`/rooms/${id}/logs`),
+  // Latest water-rig snapshot (valves, pump, levels, weight) - null until reported.
+  water: (id) => request(`/rooms/${id}/water`),
   command: (id, type) => request(`/rooms/${id}/command`, { method: 'POST', body: JSON.stringify({ type }) }),
   maintenance: (roomId) => request(`/rooms/${roomId}/maintenance`),
   completeMaintenance: (roomId, taskId) => request(`/rooms/${roomId}/maintenance/${taskId}/complete`, { method: 'POST' }),

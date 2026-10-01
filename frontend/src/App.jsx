@@ -6,6 +6,7 @@ import Tip from './Tooltip';
 import WaterTank from './WaterTank';
 import FarmPipeline from './FarmPipeline';
 import { nextMistWindow, feedForecast, fungicideForecast } from './forecast';
+import WaterRig from './WaterRig';
 
 export default function App() {
   const [token, setTok] = useState(getToken());
@@ -894,6 +895,10 @@ function RoomDetail({ room, farm, benches, socket, onChanged, onGoToFarm }) {
         </Stat>
         <Stat label="Rain" value={room.raining ? 'Raining — locked out' : 'Clear'} tip="While raining, misting is locked out even if thresholds are met" />
         <Stat label="Water used (recent)" value={`${(totalWaterMl / 1000).toFixed(2)} L`} tip="Sum of mist + feed volume across the events currently loaded, from the farm's shared tank" />
+      </section>
+
+      <section className="rig-row">
+        <WaterRig room={room} socket={socket} />
       </section>
 
       <section className="grid-2">

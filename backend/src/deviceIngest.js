@@ -178,4 +178,41 @@ async function ingestLogs(io, room, body) {
   return inserted;
 }
 
-module.exports = { buildRoomConfigPayload, ingestTelemetry, ingestStatus, ingestEvent, ingestLogs };
+// Water rig snapshots (plant/device/water): valves, pump, float levels,
+// scale weight and the controller's status line. Kept in memory only - the
+// board re-sends on every change plus a 60s heartbeat, so after a backend
+// restart the dashboard is current again within a minute. History of what
+// the rig did lives in device_logs / events already.
+const latestWater = new Map(); // roomId -> snapshot
+
+async function ingestWater(io, room, body) {
+  const b = body || {};
+  const snap = {
+    roomId: room.id,
+    inputValve: !!b.inputValve,
+    outputValve: !!b.outputValve,
+    pump: !!b.pump,
+    fill: ['idle', 'filling', 'timeout'].includes(b.fill) ? b.fill : 'idle',
+    pumpState: ['idle', 'opening', 'running', 'closing'].includes(b.pumpState) ? b.pumpState : 'idle',
+    pumpSecondsLeft: Number.isFinite(b.pumpSecondsLeft) ? b.pumpSecondsLeft : -1,
+    levelsKnown: !!b.levelsKnown,
+    bottomWet: !!b.bottomWet,
+    topWet: !!b.topWet,
+    relayTest: !!b.relayTest,
+    status: String(b.status ?? '').slice(0, 32),
+    weightKg: Number.isFinite(b.weightKg) ? b.weightKg : null,
+    fw: String(b.fw ?? '').slice(0, 24),
+    receivedAt: new Date().toISOString(),
+  };
+  latestWater.set(room.id, snap);
+  io.to(`room:${room.id}`).emit('room_water', snap);
+  return snap;
+}
+
+function getLatestWater(roomId) {
+  return latestWater.get(Number(roomId)) || null;
+}
+
+module.exports = {
+  buildRoomConfigPayload, ingestTelemetry, ingestStatus, ingestEvent, ingestLogs, ingestWater, getLatestWater,
+};

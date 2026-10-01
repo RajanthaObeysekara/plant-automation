@@ -257,7 +257,7 @@ void DisplayDriver::update(const Reading &r, const String &activity, bool paused
   bool anyPresent = tankState.length() > 0;
   String waterStr = anyPresent ? tankState : "--";
   uint16_t waterColor = C_DATA;
-  if (tankState == "EMPTY") waterColor = C_WARN;
+  if (tankState == "LOW") waterColor = C_WARN;
   else if (tankState == "FULL") waterColor = C_OK;
   else if (tankState == "FAULT") waterColor = C_CRIT;
   else if (!anyPresent) waterColor = C_MUTED;
@@ -272,6 +272,12 @@ void DisplayDriver::update(const Reading &r, const String &activity, bool paused
   if (note.length()) {
     statusStr = note;
     statusColor = C_WARN;
+  } else if (activity.startsWith("FAULT") || activity.endsWith("TIMEOUT")) {
+    statusStr = activity;         // water-rig alarm - outranks PAUSED
+    statusColor = C_CRIT;
+  } else if (activity.length() && activity != "idle" && activity != "misting") {
+    statusStr = activity;         // live water-rig state: FILL 1:23, PUMP 12s, VALVE OPEN...
+    statusColor = C_DATA;
   } else if (paused) {
     statusStr = "PAUSED";
     statusColor = C_WARN;

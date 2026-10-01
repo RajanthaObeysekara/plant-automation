@@ -3,6 +3,7 @@ const { pool } = require('../db');
 const { requireUser } = require('../auth');
 const { buildSevenDayPlan } = require('../planner');
 const { publishConfigForRoomId, publishCommandForRoomId } = require('../mqtt');
+const { getLatestWater } = require('../deviceIngest');
 
 function buildRoomsRouter(io) {
   const router = express.Router();
@@ -147,6 +148,11 @@ function buildRoomsRouter(io) {
       telemetry: telemetry.rows.reverse(),
       events: events.rows.reverse(),
     });
+  });
+
+  // Latest water rig snapshot from the board (null until it has reported).
+  router.get('/:id/water', requireUser, (req, res) => {
+    res.json(getLatestWater(req.params.id));
   });
 
   router.get('/:id/logs', requireUser, async (req, res) => {
