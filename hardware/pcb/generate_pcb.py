@@ -45,7 +45,7 @@ nets = (["", "GND", "+3V3", "+5V", "5V_IN", "LED5_K",
          "SR_EN", "SR_DATA", "SR_LATCH", "SR_CLK",
          "HX_DT", "HX_SCK", "LC_EP", "LC_EM", "LC_AM", "LC_AP",
          "RAIN_DO", "RAIN_AO", "RAIN_P1", "RAIN_P2",
-         "SPARE_IO36", "SPARE_IO39"] + RELAY_NETS)
+         "SPARE_IO36", "SPARE_IO39", "RELAY_PWR_EN"] + RELAY_NETS)
 NET = {n: i for i, n in enumerate(nets)}
 HIGH_CURRENT = ["+12V", "GND12", "PUMP_12V"] + VALVE_NETS
 POWER = ["+5V", "5V_IN", "GND", "+3V3"]
@@ -60,7 +60,7 @@ ESP_LEFT = [("3V3", "+3V3"), ("EN", None), ("VP", "SPARE_IO36"), ("VN", "SPARE_I
 ESP_RIGHT = [("GND", "GND"), ("23", "OLED_MOSI"), ("22", "SR_CLK"), ("TX", None), ("RX", None),
              ("21", "DHT2_DATA"), ("GND", "GND"), ("19", "FLOAT_LOW"), ("18", "OLED_SCLK"),
              ("5", None), ("17", "RAIN_DO"), ("16", "FLOAT_HIGH"), ("4", "DHT1_DATA"),
-             ("0", None), ("2", None), ("15", None), ("D1", None), ("D0", None), ("CLK", None)]
+             ("0", None), ("2", "RELAY_PWR_EN"), ("15", None), ("D1", None), ("D0", None), ("CLK", None)]
 ESP_X = 30.0                       # USB centre, from the PCB's left edge
 ESP_TOP_Y = BH - 5.5 - 18 * P      # last pin 5.5 mm from the front edge
 
@@ -215,6 +215,10 @@ outlines.append((SRX, SRY, SRX + 70, SRY + 30, "74HC595 x3 MODULE (ASSUMED 70x30
 fps.append(idc_2x10("J20", 150.0, 42.0))
 # Relay 17: a separate single-relay module (IN / VCC / GND), next to the ribbon header.
 fps.append(row("J21", "RELAY 17", 137.0, 42.0, [("IN", "RLY_IN17"), ("5V", "+5V"), ("GND", "GND")], labels_side=-1, kind="PinHeader"))
+# Master relay-coil power enable: GPIO2 (LOW at boot) -> a HIGH-level-trigger
+# single relay module whose NO contact feeds the relay board's JD-VCC (jumper
+# removed). No relay can energize until the firmware switches this on.
+fps.append(row("J22", "RELAY PWR EN", 137.0, 52.0, [("EN", "RELAY_PWR_EN"), ("5V", "+5V"), ("GND", "GND")], labels_side=-1, kind="PinHeader"))
 
 # ---- HX711 module: body 109.5..143.5 x 79.5..100.5 ----
 fps.append(row("U4A", "HX711 LOGIC", 112.0, 86.19,
@@ -361,7 +365,8 @@ def write_tables(out):
            ("J14", "Screw terminal 4-pos = 2x KF301-5.0-2P side by side", 2, "C474881"),
            ("J20", "Box header 2x10 2.54mm (IDC)", 1, "C3405"),
            ("(cable)", "Relay cable: 2x10 IDC plug for J20 + 30cm 20-way 1.27mm ribbon + Dupont female ends", 1, "C2977597 (plug); ribbon/Dupont locally"),
-           ("J16,J21", "Male pin header 1x4 (spare inputs) / 1x3 (relay 17)", 2, "C2337 (cut from 1x40)"),
+           ("J16,J21,J22", "Male pin header 1x4 (spare inputs) / 1x3 (relay 17) / 1x3 (relay power enable)", 3, "C2337 (cut from 1x40)"),
+           ("(off-board)", "Master relay: 1-ch 5V relay module, HIGH-level trigger, on J22; NO contact in series with relay board JD-VCC", 1, "buy locally (high-level trigger!)"),
            ("F1", "PTC resettable fuse, radial, 3A hold, >=6V", 1, "C369115"),
            ("F2", "5x20mm fuse clip (2 per fuse) + 10A slow-blow 5x20 fuse", 2, "C3130"),
            ("F3-F8", "PTC resettable fuse, radial, 1.1A hold, >=16V", 6, "C369100"),

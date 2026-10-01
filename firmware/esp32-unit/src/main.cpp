@@ -481,6 +481,14 @@ String tankStateLabel() {
 }
 
 void setup() {
+  // FIRST, before anything else: relay coil power off, then latch the
+  // all-relays-off frame into the 74HC595s and enable their outputs. Every
+  // millisecond before this, the outputs are undefined (often all LOW =
+  // every active-low relay ON) - so nothing (display, splash, delays) may
+  // run ahead of it.
+  pinMode(PIN_RELAY_POWER_EN, OUTPUT);
+  digitalWrite(PIN_RELAY_POWER_EN, LOW);
+  ShiftRegister::begin();
   Serial.begin(115200);
   delay(200);
   Serial.println("\n[main] Plant Automation room controller starting");
@@ -506,7 +514,6 @@ void setup() {
                           // over for the rest of the device's uptime.
   delay(1500);
   sensors.begin();
-  ShiftRegister::begin(); // before actuators — relays are shift register outputs
   hasScale = Secrets::hasScale();
   if (hasScale) WeightSensor::begin(); // no HX711: its DT pin floats "ready" and would be read nonstop
   actuators.begin();
@@ -594,6 +601,13 @@ void setup() {
   }
 
   actOnCurrentConfig();
+
+  // Relay outputs have held the all-off frame since the first line of
+  // setup(); only now give the relay board its coil power.
+  delay(RELAY_POWER_SETTLE_MS);
+  digitalWrite(PIN_RELAY_POWER_EN, HIGH);
+  Serial.println("[main] relay coil power ON (outputs were latched OFF first)");
+  RemoteLog::add("info", "relay coil power enabled after outputs latched off");
 }
 
 void loop() {
@@ -607,7 +621,7 @@ void loop() {
     checkFloatSwitch2();
   }
   Ota::loop(WiFi.status() == WL_CONNECTED, cycle == Cycle::IDLE && !mistRequested, oled, cloud,
-            [] { actuators.allOff(); });
+            [] { actuators.allOff(); ShiftRegister::allIdle(); digitalWrite(PIN_RELAY_POWER_EN, LOW); });
 
   // Zero MQTT cost — applies a backend-pushed config (Pause/Resume/
   // schedule change) the instant it arrives, without this device spending

@@ -11,7 +11,8 @@ U5B,Female header 1x2 2.54mm (rain plate),1,C9811 (cut from 1x40)
 J14,Screw terminal 4-pos = 2x KF301-5.0-2P side by side,2,C474881
 J20,Box header 2x10 2.54mm (IDC),1,C3405
 (cable),Relay cable: 2x10 IDC plug for J20 + 30cm 20-way 1.27mm ribbon + Dupont female ends,1,C2977597 (plug); ribbon/Dupont locally
-"J16,J21",Male pin header 1x4 (spare inputs) / 1x3 (relay 17),2,C2337 (cut from 1x40)
+"J16,J21,J22",Male pin header 1x4 (spare inputs) / 1x3 (relay 17) / 1x3 (relay power enable),3,C2337 (cut from 1x40)
+(off-board),"Master relay: 1-ch 5V relay module, HIGH-level trigger, on J22; NO contact in series with relay board JD-VCC",1,buy locally (high-level trigger!)
 F1,"PTC resettable fuse, radial, 3A hold, >=6V",1,C369115
 F2,5x20mm fuse clip (2 per fuse) + 10A slow-blow 5x20 fuse,2,C3130
 F3-F8,"PTC resettable fuse, radial, 1.1A hold, >=16V",6,C369100

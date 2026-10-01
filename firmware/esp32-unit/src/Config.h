@@ -73,6 +73,16 @@
 #define WEIGHT_BOOT_TARE_MAX_WAIT_MS 15000UL
 #define WEIGHT_BOOT_TARE_STABLE_KG 0.2f
 
+// Master relay-power enable (active HIGH). Drives a high-level-trigger
+// single relay module (PCB header J22) whose NO contact feeds the relay
+// board's JD-VCC (coil supply, VCC-JD-VCC jumper removed). GPIO2 is a boot
+// strapping pin the ESP32 itself requires to be LOW at reset, so the coil
+// supply is guaranteed OFF through power-up, reset and OTA reboots - no
+// relay can energize whatever the 74HC595 outputs do until the firmware
+// has latched the all-off frame and switches this on (end of setup()).
+#define PIN_RELAY_POWER_EN 2
+#define RELAY_POWER_SETTLE_MS 200UL // after the all-off frame, before coil power
+
 // Relay channels, as shift register outputs (Qn) rather than GPIOs.
 #define SR_OUT_WATER_PUMP  1
 #define SR_OUT_WATER_VALVE 2
@@ -83,10 +93,8 @@
 // Pump/valve actuation is off (ACTUATION_ENABLED in main.cpp), so nothing
 // else drives the outputs. Set to 0 once the board is verified — with
 // relays connected this clicks every channel.
-// ON by default while the boards are bench units with no pumps/valves
-// wired (boards are only reachable through OTA now). MUST go back to 0 in
-// the release that precedes connecting real pumps/valves, or they cycle.
-#define SR_TEST_ENABLED 1 // default for boards that never chose; `srtest on|off` (serial or the srtest_on/off
+// OFF: real pumps/valves are connected - a chase would cycle them.
+#define SR_TEST_ENABLED 0 // default for boards that never chose; `srtest on|off` (serial or the srtest_on/off
                           // command) switches it AND remembers the choice per board in NVS ("sr_test")
 #define SR_TEST_INTERVAL_MS 150UL
 
