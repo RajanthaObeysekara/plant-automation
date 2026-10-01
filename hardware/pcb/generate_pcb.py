@@ -1,7 +1,7 @@
 """Room controller main PCB (v2) — 190 x 130 mm, 2 layers, all through-hole.
 
 Everything plugs into this one board: ESP32 DevKitC-38, DM0054 OLED, the
-74HC595 module (outputs 1-16 used), HX711 module and rain-sensor comparator module
+74HC595 module (outputs 1-17 used), HX711 module and rain-sensor comparator module
 (all on sockets), plus screw terminals for the field wiring, 5V and 12V
 inputs, a fused 12V distribution (1 pump + 6 valves) and a 2x10 ribbon
 header to the MD0293 16-channel relay board.
@@ -36,7 +36,7 @@ MODULE_ASSUMPTIONS = [
     ("MD0293 16-ch relay board", "180 x 90 x 20 mm, 5V, low-level trigger; inputs via 2x10 ribbon (IN1-16, 5V, GND)"),
 ]
 
-RELAY_NETS = [f"RLY_IN{i}" for i in range(1, 17)]
+RELAY_NETS = [f"RLY_IN{i}" for i in range(1, 18)]   # 1-16: relay board ribbon (J20), 17: single relay (J21)
 VALVE_NETS = [f"V{i}_12V" for i in range(1, 7)]
 nets = (["", "GND", "+3V3", "+5V", "5V_IN", "LED5_K",
          "+12V", "GND12", "LED12_K", "PUMP_12V"] + VALVE_NETS +
@@ -166,7 +166,7 @@ def idc_2x10(ref, x, y):
     """2x10 2.54mm box header, vertical: pin 1 top-left, odd pins left column."""
     f = FP(ref, "RELAY BOARD 2x10", x, y, "IDC_BoxHeader_2x10_P2.54mm")
     names = [f"IN{i}" for i in range(1, 17)] + ["5V", "5V", "GND", "GND"]
-    netl = RELAY_NETS + ["+5V", "+5V", "GND", "GND"]
+    netl = RELAY_NETS[:16] + ["+5V", "+5V", "GND", "GND"]
     for i in range(20):
         col, r = i % 2, i // 2
         f.pad(i + 1, col * P, r * P, netl[i], "rect" if i == 0 else "circle")
@@ -205,14 +205,16 @@ fps.append(row("U3A", "595 IN", SRX + 2.54, SRY + 3.65,
                [("LDEN", "SR_EN"), ("GND", "GND"), ("VCC", "+3V3"), ("LDSI", "SR_DATA"),
                 ("LDSRT", "SR_LATCH"), ("LDSCK", "SR_CLK")], labels_side=1))
 fps.append(row("U3B", "595 CASCADE (NC)", SRX + 67.46, SRY + 3.65, [("", None)] * 6))
-# The module has 24 outputs (3 chips); only Q0-Q15 are used - pins 17-24
+# The module has 24 outputs (3 chips); only Q0-Q16 are used - pins 18-24
 # of this socket are mechanical only (no net).
-fps.append(row("U3C", "595 OUTPUTS (1-16 USED)", SRX + 5.79, SRY + 27.46,
-               [(str(i + 1) if i % 4 == 0 else "", RELAY_NETS[i] if i < 16 else None) for i in range(24)], horizontal=True))
+fps.append(row("U3C", "595 OUTPUTS (1-17 USED)", SRX + 5.79, SRY + 27.46,
+               [(str(i + 1) if i % 4 == 0 else "", RELAY_NETS[i] if i < 17 else None) for i in range(24)], horizontal=True))
 outlines.append((SRX, SRY, SRX + 70, SRY + 30, "74HC595 x3 MODULE (ASSUMED 70x30)"))
 
 # ---- Relay ribbon header ----
 fps.append(idc_2x10("J20", 150.0, 42.0))
+# Relay 17: a separate single-relay module (IN / VCC / GND), next to the ribbon header.
+fps.append(row("J21", "RELAY 17", 137.0, 42.0, [("IN", "RLY_IN17"), ("5V", "+5V"), ("GND", "GND")], labels_side=-1, kind="PinHeader"))
 
 # ---- HX711 module: body 109.5..143.5 x 79.5..100.5 ----
 fps.append(row("U4A", "HX711 LOGIC", 112.0, 86.19,
@@ -359,7 +361,7 @@ def write_tables(out):
            ("J14", "Screw terminal 4-pos = 2x KF301-5.0-2P side by side", 2, "C474881"),
            ("J20", "Box header 2x10 2.54mm (IDC)", 1, "C3405"),
            ("(cable)", "Relay cable: 2x10 IDC plug for J20 + 30cm 20-way 1.27mm ribbon + Dupont female ends", 1, "C2977597 (plug); ribbon/Dupont locally"),
-           ("J16", "Male pin header 1x4 2.54mm (spare inputs)", 1, "C2337 (cut from 1x40)"),
+           ("J16,J21", "Male pin header 1x4 (spare inputs) / 1x3 (relay 17)", 2, "C2337 (cut from 1x40)"),
            ("F1", "PTC resettable fuse, radial, 3A hold, >=6V", 1, "C369115"),
            ("F2", "5x20mm fuse clip (2 per fuse) + 10A slow-blow 5x20 fuse", 2, "C3130"),
            ("F3-F8", "PTC resettable fuse, radial, 1.1A hold, >=16V", 6, "C369100"),
@@ -427,7 +429,7 @@ def write_preview(path, bom):
     ty -= 2 * mm
     c.setFont("Helvetica-Bold", 9); c.drawString(tx, ty, "Relay ribbon J20 (2x10):"); ty -= 4.6 * mm
     c.setFont("Helvetica", 7.4)
-    c.drawString(tx, ty, "pins 1-16 = IN1-IN16 (74HC595 Q0-Q15), 17-18 = +5V (relay VCC & JD-VCC), 19-20 = GND.  Low level = relay ON."); ty -= 3.8 * mm
+    c.drawString(tx, ty, "pins 1-16 = IN1-IN16 (74HC595 Q0-Q15), 17-18 = +5V (relay VCC & JD-VCC), 19-20 = GND.  Low level = relay ON.  Relay 17 (Q16): J21 IN/5V/GND."); ty -= 3.8 * mm
     c.drawString(tx, ty, "Firmware: pump relay = IN2 (Q1), valve relay = IN3 (Q2) - see Config.h SR_OUT_*."); ty -= 3.8 * mm
     bx, by = pw / 2 + 25 * mm, Y(BH) - 12 * mm
     c.setFont("Helvetica-Bold", 9); c.drawString(bx, by, "Bill of materials"); by -= 4.6 * mm

@@ -3,7 +3,7 @@
 
 namespace {
 uint32_t frame = 0; // bit n = output Qn
-// Idle covers every physical output (unused Q16-Q23 included); only the
+// Idle covers every physical output (unused Q17-Q23 included); only the
 // used ones can ever be switched away from it.
 const uint32_t physicalMask = (SR_PHYSICAL_OUTPUTS >= 32) ? 0xFFFFFFFFUL : ((1UL << SR_PHYSICAL_OUTPUTS) - 1);
 const uint32_t usedMask = (1UL << SR_OUTPUT_COUNT) - 1;

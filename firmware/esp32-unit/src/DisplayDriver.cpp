@@ -180,6 +180,8 @@ void DisplayDriver::showConnecting(const String &ssid) {
 #define ROW_WATER_Y    42
 #define ROW_STATUS_Y   53
 #define ROW_OUTPUTS_Y  62 // 2px-tall dot strip on the last two pixel rows, below the status text
+#define DOT_PITCH (W / SR_OUTPUT_COUNT)
+#define DOT_X0 ((W - DOT_PITCH * SR_OUTPUT_COUNT + 1) / 2)
 
 static void drawStaticChrome() {
   display.fillScreen(C_BG);
@@ -303,14 +305,15 @@ void DisplayDriver::update(const Reading &r, const String &activity, bool paused
     drawRightValue(ROW_STATUS_Y, rainStr, C_DATA, &lastRainW);
   }
 
-  // Shift register outputs 1-16: 16 dots, 4px wide on a 6px pitch = the 96px width.
+  // One dot per used shift register output (SR_OUTPUT_COUNT), spread over
+  // the 96px width: 17 outputs -> 5px pitch, 4px dots, centred.
   // Only dots whose state changed are redrawn.
   static bool outputsDrawn = false;
   static uint32_t lastOutputs = 0;
   uint32_t changed = outputsDrawn ? (outputsOn ^ lastOutputs) : 0xFFFFFFFFUL;
   for (int i = 0; i < SR_OUTPUT_COUNT; i++) {
     if (!((changed >> i) & 1UL)) continue;
-    display.fillRect(i * 6 + 1, ROW_OUTPUTS_Y, 4, 2, ((outputsOn >> i) & 1UL) ? C_OK : C_CRIT);
+    display.fillRect(DOT_X0 + i * DOT_PITCH, ROW_OUTPUTS_Y, DOT_PITCH - 1, 2, ((outputsOn >> i) & 1UL) ? C_OK : C_CRIT);
   }
   outputsDrawn = true;
   lastOutputs = outputsOn;

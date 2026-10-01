@@ -15,7 +15,7 @@ IMG = os.path.join(HERE, "bom-images")
 PARTS = [
     ("C319202", 2, "U1A, U1B - ESP32 sockets (female 1x19)"),
     ("C9811", 2, "U2-U5 - module sockets, cut from female 1x40 strips (59 pins)"),
-    ("C2337", 1, "J16 - spare-input header, cut from male 1x40"),
+    ("C2337", 1, "J16 spare inputs + J21 relay-17 header, cut from male 1x40"),
     ("C474881", 14, "J3-J13, J15 + 2 for the 4-way J14 - 2-pos screw terminals"),
     ("C474882", 2, "J1, J2 - DHT22 3-pos screw terminals"),
     ("C3405", 1, "J20 - 2x10 box header for the relay-board ribbon"),

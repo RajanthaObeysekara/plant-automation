@@ -35,10 +35,11 @@
 #define SR_ENABLE_ACTIVE_LOW true // standard 74HC595 OE; flip if outputs never switch
 #define SR_CHIP_COUNT 3
 #define SR_PHYSICAL_OUTPUTS (SR_CHIP_COUNT * 8) // bits clocked through the whole chain
-// Outputs actually used: Q0-Q15 = relay IN1-IN16. Q16-Q23 (the third chip)
-// are still clocked - the chain is physically 24 bits long - but are held
-// at their idle level permanently and never switched.
-#define SR_OUTPUT_COUNT 16
+// Outputs actually used: Q0-Q15 = 16-channel relay board IN1-IN16, Q16 =
+// relay 17 (separate single-relay module, PCB header J21). Q17-Q23 are
+// still clocked - the chain is physically 24 bits long - but are held at
+// their idle level permanently and never switched.
+#define SR_OUTPUT_COUNT 17
 // Level every output rests at when "off". The outputs feed relay inputs,
 // so idle = relay de-energized — HIGH on the usual active-low relay board
 // (RELAY_ACTIVE_LOW below). Latching all-LOW at boot instead would
@@ -76,7 +77,7 @@
 #define SR_OUT_WATER_PUMP  1
 #define SR_OUT_WATER_VALVE 2
 
-// Bench test: energizes outputs 1-16 (Q0-Q15) one at a time in order,
+// Bench test: energizes outputs 1-17 (Q0-Q16) one at a time in order,
 // one step every SR_TEST_INTERVAL_MS, then de-energizes them in the same
 // order, and repeats — visible live on the OLED's bottom dot strip.
 // Pump/valve actuation is off (ACTUATION_ENABLED in main.cpp), so nothing

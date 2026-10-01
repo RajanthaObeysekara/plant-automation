@@ -53,6 +53,7 @@ unsigned long lastSrTestAt = 0;
 // release can't start cycling relays on its own.
 bool srTestOn = SR_TEST_ENABLED;
 int srTestStep = 0;
+unsigned long srTestCycles = 0;   // completed full cycles since boot
 void setSrTest(bool on) {
   srTestOn = on;
   srTestStep = 0;
@@ -642,7 +643,7 @@ void loop() {
   RemoteLog::loop();
 
   if (srTestOn) {
-    // Step 0..15 energizes output n+1, 16..31 de-energizes it again — in
+    // Step 0..16 energizes output n+1, 17..33 de-energizes it again — in
     // relay terms (RELAY_ACTIVE_LOW), so it matches the OLED's output dots.
     if (now - lastSrTestAt >= SR_TEST_INTERVAL_MS) {
       lastSrTestAt = now;
@@ -650,6 +651,15 @@ void loop() {
       bool energize = srTestStep < SR_OUTPUT_COUNT;
       ShiftRegister::write(output, RELAY_ACTIVE_LOW ? !energize : energize);
       srTestStep = (srTestStep + 1) % (SR_OUTPUT_COUNT * 2);
+      if (srTestStep == 0) {
+        // One line per full pass (every output switched on, then off again).
+        // RemoteLog batches uploads every 10s, so this costs at most one
+        // MQTT message per batch however short the cycle is.
+        srTestCycles++;
+        String msg = "relay chase: cycle " + String(srTestCycles) + " complete (outputs 1-" + String(SR_OUTPUT_COUNT) + " on, then off)";
+        Serial.println("[sr-test] " + msg);
+        RemoteLog::add("info", msg);
+      }
     }
   }
 
