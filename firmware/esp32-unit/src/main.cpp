@@ -46,15 +46,19 @@ unsigned long lastCommandPollAt = 0;
 unsigned long lastConfigSyncAt = 0;
 unsigned long lastMistAt = 0;
 unsigned long lastSrTestAt = 0;
-// Relay chase bench test: off at every boot (never ships running), toggled
-// with `srtest on|off` over serial or the srtest_on/srtest_off command.
+// Relay chase bench test, toggled with `srtest on|off` over serial or the
+// srtest_on/srtest_off command. The choice is remembered per board (NVS
+// "sr_test"), so a bench board keeps chasing through restarts and OTA
+// updates, while every board that never asked for it stays off - a
+// release can't start cycling relays on its own.
 bool srTestOn = SR_TEST_ENABLED;
 int srTestStep = 0;
 void setSrTest(bool on) {
   srTestOn = on;
   srTestStep = 0;
+  Secrets::set("sr_test", on ? "1" : "0");
   ShiftRegister::allIdle();   // start (or end) with every relay off
-  Serial.printf("[sr-test] relay chase %s\n", on ? "ON" : "OFF - all outputs idle");
+  Serial.printf("[sr-test] relay chase %s (remembered across restarts)\n", on ? "ON" : "OFF - all outputs idle");
 }
 unsigned long lastWeightLogAt = 0;
 
@@ -505,6 +509,8 @@ void setup() {
   hasScale = Secrets::hasScale();
   if (hasScale) WeightSensor::begin(); // no HX711: its DT pin floats "ready" and would be read nonstop
   actuators.begin();
+  srTestOn = Secrets::get("sr_test", SR_TEST_ENABLED ? "1" : "0") == "1";
+  if (srTestOn) Serial.println("[sr-test] relay chase ON (saved setting for this board)");
   hasTank = Secrets::hasTank();
   if (hasTank) {
     pinMode(PIN_WATER_LEVEL_FLOAT, INPUT_PULLUP); // passive reed switch to GND — internal pull-up is all it needs

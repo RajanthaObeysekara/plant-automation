@@ -8,7 +8,7 @@
 // serial commands), and survive every OTA update.
 //
 // Keys:  wifi_ssid wifi_pass mqtt_user mqtt_pass device_key   (required)
-//        mqtt_host mqtt_port has_tank has_scale ota_url       (optional)
+//        mqtt_host mqtt_port has_tank has_scale sr_test ota_url  (optional)
 namespace Secrets {
   void begin();                         // load from NVS
   bool complete();                      // all required keys present

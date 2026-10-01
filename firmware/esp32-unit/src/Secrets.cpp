@@ -6,7 +6,7 @@ namespace {
 const char *NS = "secrets";
 const char *REQUIRED[] = {"wifi_ssid", "wifi_pass", "mqtt_user", "mqtt_pass", "device_key"};
 const char *KNOWN[] = {"wifi_ssid", "wifi_pass", "mqtt_user", "mqtt_pass", "device_key",
-                       "mqtt_host", "mqtt_port", "has_tank", "has_scale", "ota_url"};
+                       "mqtt_host", "mqtt_port", "has_tank", "has_scale", "sr_test", "ota_url"};
 Preferences prefs;
 bool opened = false;
 
