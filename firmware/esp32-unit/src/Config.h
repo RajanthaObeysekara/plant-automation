@@ -207,10 +207,10 @@
 // Latest release's manifest (GitHub redirects /latest/ to the newest tag).
 // Overridable per board with the `ota_url` secret, e.g. for testing.
 #define OTA_MANIFEST_URL "https://github.com/RajanthaObeysekara/plant-automation/releases/latest/download/manifest.json"
-#define OTA_CHECK_INTERVAL_MS (60UL * 60UL * 1000UL)   // hourly: GitHub is the only update path now
+#define OTA_CHECK_INTERVAL_MS (5UL * 60UL * 1000UL)    // every 5 min while boards are bench units; ~1KB per check
 #define OTA_FIRST_CHECK_DELAY_MS (60UL * 1000UL)   // settle after boot first
 #define OTA_BUSY_RETRY_MS (5UL * 60UL * 1000UL)    // pump/valves busy -> try again later
-#define OTA_FAIL_RETRY_MS (10UL * 60UL * 1000UL)   // GitHub unreachable -> try again sooner than 6h
+#define OTA_FAIL_RETRY_MS (5UL * 60UL * 1000UL)    // GitHub unreachable -> try again at the normal pace
 // Weak links drop mid-download: resume from the last byte (HTTP Range) up
 // to this many times; a connection silent for OTA_STALL_MS counts as dropped.
 #define OTA_DOWNLOAD_ATTEMPTS 5
