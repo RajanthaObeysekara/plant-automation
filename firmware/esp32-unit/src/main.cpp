@@ -642,7 +642,7 @@ void loop() {
   RemoteLog::loop();
 
   if (srTestOn) {
-    // Step 0..23 energizes output n+1, 24..47 de-energizes it again — in
+    // Step 0..15 energizes output n+1, 16..31 de-energizes it again — in
     // relay terms (RELAY_ACTIVE_LOW), so it matches the OLED's output dots.
     if (now - lastSrTestAt >= SR_TEST_INTERVAL_MS) {
       lastSrTestAt = now;

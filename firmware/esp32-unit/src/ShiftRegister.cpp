@@ -3,8 +3,11 @@
 
 namespace {
 uint32_t frame = 0; // bit n = output Qn
-const uint32_t allOutputs = (SR_OUTPUT_COUNT >= 32) ? 0xFFFFFFFFUL : ((1UL << SR_OUTPUT_COUNT) - 1);
-const uint32_t idleFrame = SR_IDLE_HIGH ? allOutputs : 0;
+// Idle covers every physical output (unused Q16-Q23 included); only the
+// used ones can ever be switched away from it.
+const uint32_t physicalMask = (SR_PHYSICAL_OUTPUTS >= 32) ? 0xFFFFFFFFUL : ((1UL << SR_PHYSICAL_OUTPUTS) - 1);
+const uint32_t usedMask = (1UL << SR_OUTPUT_COUNT) - 1;
+const uint32_t idleFrame = SR_IDLE_HIGH ? physicalMask : 0;
 
 void push() {
   // The first byte shifted in ends up in the chip furthest from the ESP32,
@@ -56,7 +59,7 @@ void allIdle() {
 }
 
 uint32_t activeMask() {
-  return frame ^ idleFrame;
+  return (frame ^ idleFrame) & usedMask;
 }
 
 } // namespace ShiftRegister

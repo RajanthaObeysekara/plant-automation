@@ -303,14 +303,14 @@ void DisplayDriver::update(const Reading &r, const String &activity, bool paused
     drawRightValue(ROW_STATUS_Y, rainStr, C_DATA, &lastRainW);
   }
 
-  // Shift register outputs: 24 dots x 4px pitch = exactly the 96px width.
+  // Shift register outputs 1-16: 16 dots, 4px wide on a 6px pitch = the 96px width.
   // Only dots whose state changed are redrawn.
   static bool outputsDrawn = false;
   static uint32_t lastOutputs = 0;
   uint32_t changed = outputsDrawn ? (outputsOn ^ lastOutputs) : 0xFFFFFFFFUL;
   for (int i = 0; i < SR_OUTPUT_COUNT; i++) {
     if (!((changed >> i) & 1UL)) continue;
-    display.fillRect(i * 4 + 1, ROW_OUTPUTS_Y, 2, 2, ((outputsOn >> i) & 1UL) ? C_OK : C_CRIT);
+    display.fillRect(i * 6 + 1, ROW_OUTPUTS_Y, 4, 2, ((outputsOn >> i) & 1UL) ? C_OK : C_CRIT);
   }
   outputsDrawn = true;
   lastOutputs = outputsOn;

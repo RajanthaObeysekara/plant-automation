@@ -23,7 +23,7 @@
 #define PIN_RAIN_DIGITAL 17
 #define RAIN_ACTIVE_LOW true
 
-// 24-output shift register board (3x 74HC595, LED-matrix-driver labels),
+// Shift register board (3x 74HC595 = 24 physical outputs, LED-matrix-driver labels),
 // powered from 3V3. Only its LDSI end is wired; the far (cascade) end is
 // left unconnected. A 10k resistor from LDEN to 3V3 keeps every output
 // disabled while the ESP32 boots, until ShiftRegister::begin() has latched
@@ -34,7 +34,11 @@
 #define PIN_SR_ENABLE 26 // LDEN  (OE) + 10k pull-up to 3V3
 #define SR_ENABLE_ACTIVE_LOW true // standard 74HC595 OE; flip if outputs never switch
 #define SR_CHIP_COUNT 3
-#define SR_OUTPUT_COUNT (SR_CHIP_COUNT * 8)
+#define SR_PHYSICAL_OUTPUTS (SR_CHIP_COUNT * 8) // bits clocked through the whole chain
+// Outputs actually used: Q0-Q15 = relay IN1-IN16. Q16-Q23 (the third chip)
+// are still clocked - the chain is physically 24 bits long - but are held
+// at their idle level permanently and never switched.
+#define SR_OUTPUT_COUNT 16
 // Level every output rests at when "off". The outputs feed relay inputs,
 // so idle = relay de-energized — HIGH on the usual active-low relay board
 // (RELAY_ACTIVE_LOW below). Latching all-LOW at boot instead would
@@ -72,7 +76,7 @@
 #define SR_OUT_WATER_PUMP  1
 #define SR_OUT_WATER_VALVE 2
 
-// Bench test: energizes outputs 1-24 (Q0-Q23) one at a time in order,
+// Bench test: energizes outputs 1-16 (Q0-Q15) one at a time in order,
 // one step every SR_TEST_INTERVAL_MS, then de-energizes them in the same
 // order, and repeats — visible live on the OLED's bottom dot strip.
 // Pump/valve actuation is off (ACTUATION_ENABLED in main.cpp), so nothing

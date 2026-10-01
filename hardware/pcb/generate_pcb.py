@@ -1,7 +1,7 @@
 """Room controller main PCB (v2) — 190 x 130 mm, 2 layers, all through-hole.
 
 Everything plugs into this one board: ESP32 DevKitC-38, DM0054 OLED, the
-24-output 74HC595 module, HX711 module and rain-sensor comparator module
+74HC595 module (outputs 1-16 used), HX711 module and rain-sensor comparator module
 (all on sockets), plus screw terminals for the field wiring, 5V and 12V
 inputs, a fused 12V distribution (1 pump + 6 valves) and a 2x10 ribbon
 header to the MD0293 16-channel relay board.
@@ -37,7 +37,6 @@ MODULE_ASSUMPTIONS = [
 ]
 
 RELAY_NETS = [f"RLY_IN{i}" for i in range(1, 17)]
-QX_NETS = [f"SR_Q{i}" for i in range(16, 24)]
 VALVE_NETS = [f"V{i}_12V" for i in range(1, 7)]
 nets = (["", "GND", "+3V3", "+5V", "5V_IN", "LED5_K",
          "+12V", "GND12", "LED12_K", "PUMP_12V"] + VALVE_NETS +
@@ -46,7 +45,7 @@ nets = (["", "GND", "+3V3", "+5V", "5V_IN", "LED5_K",
          "SR_EN", "SR_DATA", "SR_LATCH", "SR_CLK",
          "HX_DT", "HX_SCK", "LC_EP", "LC_EM", "LC_AM", "LC_AP",
          "RAIN_DO", "RAIN_AO", "RAIN_P1", "RAIN_P2",
-         "SPARE_IO36", "SPARE_IO39"] + RELAY_NETS + QX_NETS)
+         "SPARE_IO36", "SPARE_IO39"] + RELAY_NETS)
 NET = {n: i for i, n in enumerate(nets)}
 HIGH_CURRENT = ["+12V", "GND12", "PUMP_12V"] + VALVE_NETS
 POWER = ["+5V", "5V_IN", "GND", "+3V3"]
@@ -206,13 +205,14 @@ fps.append(row("U3A", "595 IN", SRX + 2.54, SRY + 3.65,
                [("LDEN", "SR_EN"), ("GND", "GND"), ("VCC", "+3V3"), ("LDSI", "SR_DATA"),
                 ("LDSRT", "SR_LATCH"), ("LDSCK", "SR_CLK")], labels_side=1))
 fps.append(row("U3B", "595 CASCADE (NC)", SRX + 67.46, SRY + 3.65, [("", None)] * 6))
-fps.append(row("U3C", "595 OUTPUTS Q0-Q23", SRX + 5.79, SRY + 27.46,
-               [(str(i + 1) if i % 4 == 0 else "", (RELAY_NETS + QX_NETS)[i]) for i in range(24)], horizontal=True))
+# The module has 24 outputs (3 chips); only Q0-Q15 are used - pins 17-24
+# of this socket are mechanical only (no net).
+fps.append(row("U3C", "595 OUTPUTS (1-16 USED)", SRX + 5.79, SRY + 27.46,
+               [(str(i + 1) if i % 4 == 0 else "", RELAY_NETS[i] if i < 16 else None) for i in range(24)], horizontal=True))
 outlines.append((SRX, SRY, SRX + 70, SRY + 30, "74HC595 x3 MODULE (ASSUMED 70x30)"))
 
-# ---- Relay ribbon header + spare Q16-Q23 ----
+# ---- Relay ribbon header ----
 fps.append(idc_2x10("J20", 150.0, 42.0))
-fps.append(row("J21", "Q17-Q24 SPARE", 137.0, 42.0, [(str(17 + i), QX_NETS[i]) for i in range(8)], labels_side=-1, kind="PinHeader"))
 
 # ---- HX711 module: body 109.5..143.5 x 79.5..100.5 ----
 fps.append(row("U4A", "HX711 LOGIC", 112.0, 86.19,
@@ -359,7 +359,7 @@ def write_tables(out):
            ("J14", "Screw terminal 4-pos = 2x KF301-5.0-2P side by side", 2, "C474881"),
            ("J20", "Box header 2x10 2.54mm (IDC)", 1, "C3405"),
            ("(cable)", "Relay cable: 2x10 IDC plug for J20 + 30cm 20-way 1.27mm ribbon + Dupont female ends", 1, "C2977597 (plug); ribbon/Dupont locally"),
-           ("J16,J21", "Male pin header 1x4 / 1x8 2.54mm", 2, "C2337 (cut from 1x40)"),
+           ("J16", "Male pin header 1x4 2.54mm (spare inputs)", 1, "C2337 (cut from 1x40)"),
            ("F1", "PTC resettable fuse, radial, 3A hold, >=6V", 1, "C369115"),
            ("F2", "5x20mm fuse clip (2 per fuse) + 10A slow-blow 5x20 fuse", 2, "C3130"),
            ("F3-F8", "PTC resettable fuse, radial, 1.1A hold, >=16V", 6, "C369100"),
