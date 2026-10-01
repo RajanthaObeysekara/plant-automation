@@ -50,6 +50,11 @@ uint32_t state() {
   return frame;
 }
 
+void allIdle() {
+  frame = idleFrame;
+  push();
+}
+
 uint32_t activeMask() {
   return frame ^ idleFrame;
 }

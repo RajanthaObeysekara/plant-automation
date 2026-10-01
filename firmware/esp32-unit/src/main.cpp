@@ -46,6 +46,16 @@ unsigned long lastCommandPollAt = 0;
 unsigned long lastConfigSyncAt = 0;
 unsigned long lastMistAt = 0;
 unsigned long lastSrTestAt = 0;
+// Relay chase bench test: off at every boot (never ships running), toggled
+// with `srtest on|off` over serial or the srtest_on/srtest_off command.
+bool srTestOn = SR_TEST_ENABLED;
+int srTestStep = 0;
+void setSrTest(bool on) {
+  srTestOn = on;
+  srTestStep = 0;
+  ShiftRegister::allIdle();   // start (or end) with every relay off
+  Serial.printf("[sr-test] relay chase %s\n", on ? "ON" : "OFF - all outputs idle");
+}
 unsigned long lastWeightLogAt = 0;
 
 // Load cell text for the OLED's identity row, which alternates with the
@@ -100,6 +110,8 @@ void handleSerialCommands() {
       Serial.println("[main] rebooting");
       delay(100);
       ESP.restart();
+    } else if (line == "srtest on" || line == "srtest off") {
+      setSrTest(line == "srtest on");
     } else if (line == "wifi") {
       // RSSI: > -60 good, -60..-70 ok, < -75 weak (check the -32U's external antenna)
       Serial.printf("[wifi] %s, SSID=%s, RSSI=%ddBm, IP=%s\n", WiFi.status() == WL_CONNECTED ? "connected" : "DISCONNECTED",
@@ -110,7 +122,7 @@ void handleSerialCommands() {
       Ota::requestCheck(true);
       Serial.println("[ota] check requested");
     } else if (line.length()) {
-      Serial.println("[serial] unknown command: " + line + " (try: tare, cal <grams>, scale <counts/g>, weight, hxreset, secret show, wifi, version, ota check, reboot)");
+      Serial.println("[serial] unknown command: " + line + " (try: tare, cal <grams>, scale <counts/g>, weight, hxreset, secret show, wifi, version, ota check, srtest on|off, reboot)");
     }
     line = "";
   }
@@ -283,6 +295,9 @@ void pollCommandsFast() {
   for (const String &type : cloud.pollCommands()) {
     Serial.println("[main] command received: " + type);
     RemoteLog::add("info", "command received: " + type);
+    if (type == "srtest_on" || type == "srtest_off") {
+      setSrTest(type == "srtest_on");
+    }
     if (type == "mist_now") {
       mistRequested = true;
       setControlNote("MIST REQUESTED");
@@ -620,18 +635,17 @@ void loop() {
   tickCycle();
   RemoteLog::loop();
 
-#if SR_TEST_ENABLED
-  // Step 0..23 energizes output n+1, 24..47 de-energizes it again — in
-  // relay terms (RELAY_ACTIVE_LOW), so it matches the OLED's output dots.
-  static int srTestStep = 0;
-  if (lastSrTestAt == 0 || now - lastSrTestAt >= SR_TEST_INTERVAL_MS) {
-    lastSrTestAt = now;
-    int output = srTestStep % SR_OUTPUT_COUNT;
-    bool energize = srTestStep < SR_OUTPUT_COUNT;
-    ShiftRegister::write(output, RELAY_ACTIVE_LOW ? !energize : energize);
-    srTestStep = (srTestStep + 1) % (SR_OUTPUT_COUNT * 2);
+  if (srTestOn) {
+    // Step 0..23 energizes output n+1, 24..47 de-energizes it again — in
+    // relay terms (RELAY_ACTIVE_LOW), so it matches the OLED's output dots.
+    if (now - lastSrTestAt >= SR_TEST_INTERVAL_MS) {
+      lastSrTestAt = now;
+      int output = srTestStep % SR_OUTPUT_COUNT;
+      bool energize = srTestStep < SR_OUTPUT_COUNT;
+      ShiftRegister::write(output, RELAY_ACTIVE_LOW ? !energize : energize);
+      srTestStep = (srTestStep + 1) % (SR_OUTPUT_COUNT * 2);
+    }
   }
-#endif
 
   // Runs every loop iteration regardless of cfg.valid — the status bar
   // (WiFi/clock/sensor dots) and live readout are meaningful before the

@@ -14,4 +14,5 @@ namespace ShiftRegister {
   bool read(uint8_t output);             // last value written, from the shadow copy
   uint32_t state(); // bit n = output Qn
   uint32_t activeMask(); // bit n set = output Qn is away from its idle level (relay energized)
+  void allIdle();        // every output back to its idle (relay-off) level
 }

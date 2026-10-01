@@ -78,7 +78,7 @@
 // Pump/valve actuation is off (ACTUATION_ENABLED in main.cpp), so nothing
 // else drives the outputs. Set to 0 once the board is verified — with
 // relays connected this clicks every channel.
-#define SR_TEST_ENABLED 0
+#define SR_TEST_ENABLED 0 // boot default; switch at runtime with `srtest on|off` (serial) or the srtest_on/off command
 #define SR_TEST_INTERVAL_MS 150UL
 
 #define PIN_WIFI_RESET_BUTTON 0 // the devkit's BOOT button
