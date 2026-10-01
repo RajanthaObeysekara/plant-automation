@@ -78,7 +78,10 @@
 // Pump/valve actuation is off (ACTUATION_ENABLED in main.cpp), so nothing
 // else drives the outputs. Set to 0 once the board is verified — with
 // relays connected this clicks every channel.
-#define SR_TEST_ENABLED 0 // default for boards that never chose; `srtest on|off` (serial or the srtest_on/off
+// ON by default while the boards are bench units with no pumps/valves
+// wired (boards are only reachable through OTA now). MUST go back to 0 in
+// the release that precedes connecting real pumps/valves, or they cycle.
+#define SR_TEST_ENABLED 1 // default for boards that never chose; `srtest on|off` (serial or the srtest_on/off
                           // command) switches it AND remembers the choice per board in NVS ("sr_test")
 #define SR_TEST_INTERVAL_MS 150UL
 
@@ -204,7 +207,7 @@
 // Latest release's manifest (GitHub redirects /latest/ to the newest tag).
 // Overridable per board with the `ota_url` secret, e.g. for testing.
 #define OTA_MANIFEST_URL "https://github.com/RajanthaObeysekara/plant-automation/releases/latest/download/manifest.json"
-#define OTA_CHECK_INTERVAL_MS (6UL * 60UL * 60UL * 1000UL)
+#define OTA_CHECK_INTERVAL_MS (60UL * 60UL * 1000UL)   // hourly: GitHub is the only update path now
 #define OTA_FIRST_CHECK_DELAY_MS (60UL * 1000UL)   // settle after boot first
 #define OTA_BUSY_RETRY_MS (5UL * 60UL * 1000UL)    // pump/valves busy -> try again later
 #define OTA_FAIL_RETRY_MS (10UL * 60UL * 1000UL)   // GitHub unreachable -> try again sooner than 6h
